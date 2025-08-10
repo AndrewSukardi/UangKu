@@ -15,6 +15,7 @@ REGISTER_PASSWORD = "Siamang123"
 pending_transactions = {}
 waiting_trasaction = {}
 user_transactions_page_cache = {}
+date_user = {}
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 jakarta_tz = pytz.timezone("Asia/Jakarta")
@@ -94,7 +95,12 @@ def is_valid_float(text):
     except ValueError:
         return False
     
-    
+async def run_scheduler(application):
+    if not scheduler.running:
+        scheduler.add_job(notify_upcoming_bills, 'cron', hour=20, minute=30, id='daily_billing')
+        scheduler.start()
+        print("📅 Scheduler auto-started.")
+        
 
     
 #### COMMAND #####
@@ -109,8 +115,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "To get started, you’ll need a access code from the admin.\n"
         "Once you have it, just type:\n"
         "`/register <access code>`\n\n"
-        "Need help? Type `/help` and I’ll guide you through it. 😊"
+        "Need help? Type `/help` and I’ll guide you through it. 😊\n\n"
     )
+
     
 # === /register ===
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -515,7 +522,7 @@ async def send_transaction_page(update, context, telegram_id, user_id, page=0,qu
 
     # Get transactions
     res = supabase.table("transaction") \
-        .select("id,user_id,saving_id,date,type,item,amount,category,savings_accounts(account_name,account_number)") \
+        .select("id,user_id,saving_id,date,type,item,amount,category,savings_accounts(account_name,account_number,print_name)") \
         .eq("user_id", user_id) \
         .order("date", desc=True) \
         .range(offset, offset + limit) \
@@ -536,7 +543,7 @@ async def send_transaction_page(update, context, telegram_id, user_id, page=0,qu
         text_lines = [f"🛠️ *Great! Let’s pick a transaction to modify:*\n"]
         for i, tx in enumerate(txs, start=1):
             if tx.get('saving_id') :
-                account_name = f"{tx['savings_accounts'].get('account_name').upper()} (•••{tx['savings_accounts'].get('account_number')[-4:]})"
+                account_name = f"{tx['savings_accounts'].get('print_name')}"
             else :
                 account_name = 'No Saving'
             t = datetime.fromisoformat(tx['date']).astimezone(pytz.timezone("Asia/Jakarta"))
@@ -554,7 +561,7 @@ async def send_transaction_page(update, context, telegram_id, user_id, page=0,qu
                 )
             
             text_lines.append(
-                f"{type_icon} Amount : {abs(int(tx['amount']))}\n"
+                f"{type_icon} Amount : {abs(int(tx['amount'])):,}\n" 
                 f"📂 Category : {tx.get('category', '-')}\n"
                 f"🏦 Saving : {account_name}\n"
             )
@@ -1812,7 +1819,7 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🤖 Sorry, I didn’t understand that. Please use a command like /spend, /get, or /history.")
     return
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+app = ApplicationBuilder().token(BOT_TOKEN).post_init(run_scheduler).build()
 
 # handle command
 app.add_handler(CommandHandler("start", start))
@@ -1843,14 +1850,47 @@ app.add_handler(CallbackQueryHandler(confirm_delete_callback, pattern=r"^confirm
 app.add_handler(CallbackQueryHandler(confirm_edit_sv_callback, pattern=r"^edit_sv"))
 app.add_handler(CallbackQueryHandler(confirm_edit_callback, pattern=r"^edit_"))
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from datetime import datetime, timedelta
 
-print("🤖 Bot is running...")
-app.run_polling()
+scheduler = AsyncIOScheduler()
 
-# async def main():
-#     task1 = asyncio.create_task(app.run_polling())
-#     task2 = asyncio.create_task(apply_daily_interest())
-#     await asyncio.gather(task1, task2)
+async def notify_upcoming_bills():
+    msg = "🔔 This is your test billing reminder!"
+    await app.bot.send_message(chat_id=5770120154, text=msg, parse_mode="Markdown")
 
-# if __name__ == "__main__":
-#     asyncio.run(main())
+# async def notify_upcoming_bills():
+    # today = datetime.now().date()
+    # tomorrow = today + timedelta(days=1)
+
+    # response = supabase.table("billing_schedule") \
+    #     .select("*") \
+    #     .eq("due_date", str(tomorrow)) \
+    #     .eq("notified", False) \
+    #     .execute()
+
+    # for bill in response.data:
+    #     user_id = bill["user_id"]
+    #     # msg = (
+    #     #     f"📅 *Upcoming Billing Reminder!*\n\n"
+    #     #     f"🧾 *{bill['billing_name']}*\n"
+    #     #     f"💰 Amount: {bill['amount']}\n"
+    #     #     f"📆 Due Date: {bill['due_date']}"
+    #     # )
+    #    
+    #     try:
+    #         app.bot.send_message(chat_id=5770120154, text=msg, parse_mode="Markdown")
+    #         # supabase.table("billing_schedule").update({"notified": True}).eq("id", bill["id"]).execute()
+    #     except Exception as e:
+    #         print(f"❌ Failed to send reminder to {user_id}: {e}")
+
+# scheduler.add_job(notify_upcoming_bills, 'cron', hour=7)  # runs every day at 07:00
+
+
+def main():
+    print("🤖 Bot is running...")
+    app.run_polling()
+     
+
+if __name__ == "__main__":
+    main()
