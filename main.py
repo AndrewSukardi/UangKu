@@ -1,24 +1,39 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler,MessageHandler,filters
 from supabase import create_client, Client
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from datetime import datetime, timedelta
 import re
 import time
-from datetime import datetime,timedelta
 import pytz
 import asyncio
+import random
 
 BOT_TOKEN = "7991293971:AAEDLFpk9TIhwQcu8qNBhv-nTOKgkN9yDF4"
 SUPABASE_URL = "https://jzkipudrxdkimusxbsch.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6a2lwdWRyeGRraW11c3hic2NoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDY2ODYyMCwiZXhwIjoyMDY2MjQ0NjIwfQ.i6KZb9mAsWL2F2Z9asPJczjXZ0Wy4hM8h1R8J5BVwxE"
 REGISTER_PASSWORD = "Siamang123"
-
+cek = "123"
 pending_transactions = {}
 waiting_trasaction = {}
 user_transactions_page_cache = {}
 date_user = {}
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+scheduler = AsyncIOScheduler()
 jakarta_tz = pytz.timezone("Asia/Jakarta")
+
+SUCCESS_EFFECT_IDS = [
+    "5104841245755180586",  # 🔥
+    "5107584321108051014",  # 👍
+    "5159385139981059251",  # ❤️
+    "5046509860389126442",  # 🎉
+]
+
+FAIL_EFFECT_IDS  = [
+    "5104858069142078462",  # 👎
+    "5046589136895476101",  # 💩
+]
 
 SPEND_CATEGORIES = {
     "category_food": "Food",
@@ -70,7 +85,36 @@ async def apply_daily_interest():
 
         print(f"✅ Applied interest to {updated} accounts at {now}")
 
+async def notify_upcoming_bills():
+    msg = "🔔 This is your test billing reminder!"
+    await app.bot.send_message(chat_id=5770120154, text=msg, parse_mode="Markdown")
 
+# async def notify_upcoming_bills():
+    # today = datetime.now().date()
+    # tomorrow = today + timedelta(days=1)
+
+    # response = supabase.table("billing_schedule") \
+    #     .select("*") \
+    #     .eq("due_date", str(tomorrow)) \
+    #     .eq("notified", False) \
+    #     .execute()
+
+    # for bill in response.data:
+    #     user_id = bill["user_id"]
+    #     # msg = (
+    #     #     f"📅 *Upcoming Billing Reminder!*\n\n"
+    #     #     f"🧾 *{bill['billing_name']}*\n"
+    #     #     f"💰 Amount: {bill['amount']}\n"
+    #     #     f"📆 Due Date: {bill['due_date']}"
+    #     # )
+    #    
+    #     try:
+    #         app.bot.send_message(chat_id=5770120154, text=msg, parse_mode="Markdown")
+    #         # supabase.table("billing_schedule").update({"notified": True}).eq("id", bill["id"]).execute()
+    #     except Exception as e:
+    #         print(f"❌ Failed to send reminder to {user_id}: {e}")
+
+# scheduler.add_job(notify_upcoming_bills, 'cron', hour=7)  # runs every day at 07:00
 
 # basic Function 
 
@@ -94,13 +138,6 @@ def is_valid_float(text):
         return 0 <= float_val <= 100  # Optional: limit range if needed
     except ValueError:
         return False
-    
-async def run_scheduler(application):
-    if not scheduler.running:
-        scheduler.add_job(notify_upcoming_bills, 'cron', hour=20, minute=30, id='daily_billing')
-        scheduler.start()
-        print("📅 Scheduler auto-started.")
-        
 
     
 #### COMMAND #####
@@ -116,17 +153,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Once you have it, just type:\n"
         "`/register <access code>`\n\n"
         "Need help? Type `/help` and I’ll guide you through it. 😊\n\n"
-    )
+    ,message_effect_id=SUCCESS_EFFECT_IDS[2])
 
     
 # === /register ===
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = str(update.effective_user.id)
     name = update.effective_user.first_name
-
     # Check password
     if not context.args or context.args[0] != REGISTER_PASSWORD:
-        await update.message.reply_text("❌ Wrong access code.")
+        await update.message.reply_text("🚫 Access Denied – Wrong access code")
         return
 
     # Check if already registered
@@ -347,6 +383,7 @@ async def confirm_get_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 # === /Spend ===
 
 async def spend(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    
     telegram_id = str(update.effective_user.id)
 
     # Mark that we expect the next message to be spend input
@@ -1355,12 +1392,90 @@ async def confirm_edit_sv_callback(update: Update, context: ContextTypes.DEFAULT
         ) 
         return
     
+async def config(update: Update, context: ContextTypes.DEFAULT_TYPE) :
+    telegram_id = str(update.effective_user.id)
+    
+    pending_transactions.pop(telegram_id,None)
+    pending_transactions[telegram_id] = {
+        "type" : "config",
+        "step" : "enter_password",
+        "data" : {}
+    }
+    
+    await update.message.reply_text("🔑 Please enter the access code to continue")
+    
+   
+async def selecting_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    telegram_id = str(update.effective_user.id)
+    query = update.callback_query
+    message = update.message or (query.message if query else None)
+    
+    keyboard = [
+    [InlineKeyboardButton("🌐 Database URL", callback_data="config_link"),
+     InlineKeyboardButton("🔑 Database Key", callback_data="config_key")],
+    [InlineKeyboardButton("🔑 Access Key", callback_data="config_access")],
+    [InlineKeyboardButton("Done", callback_data="config_done")]
+]
+    if query :
+        await query.edit_message_text(
+                    f"⚙️ Which *configuration* would you like to change ?",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown",
+                )
+    elif message:
+        await message.reply_text(
+                    f"⚙️ Which *configuration* would you like to change ?",
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode="Markdown",
+                )
+    return
+    
+async def config_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    telegram_id = str(query.from_user.id)
+    await query.answer()
+    
+    if query.data == 'config_link':
+        pending_transactions[telegram_id].update({
+            "step" : "link_update"
+        })
+        await query.edit_message_text("🌐 What’s the new database link ?") 
+   
+        
+    elif query.data == 'config_key':
+        pending_transactions[telegram_id].update({
+            "step" : "link_key"
+        })
+        await query.edit_message_text("🔑 What’s the new database key ?")
+    
+    elif query.data == 'config_access':
+        pending_transactions[telegram_id].update({
+            "step" : "access"
+        })
+        await query.edit_message_text("🔑 What’s the new access key ?")
+    
+    elif query.data == 'config_done':
+        await query.edit_message_text("🎉 All your changes are saved!")
+    return  
     
 # Handle text    
 async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global SUPABASE_URL
+    global SUPABASE_KEY
+    global supabase
+    global REGISTER_PASSWORD
     telegram_id = str(update.effective_user.id)
     text = update.message.text.strip()
-    user_id = get_user_uuid(telegram_id)
+    try :
+        user_id = get_user_uuid(telegram_id)
+    except :
+        user_id = None
+        
+    try :
+        cek = pending_transactions[telegram_id]
+    except :
+        await update.message.reply_text("🤖 Sorry, I didn’t understand that. Please use a command like /spend, /get, or /history.")
+        return
     
     if pending_transactions[telegram_id].get('type') == "saving":
         step = pending_transactions[telegram_id].get("step")
@@ -1814,10 +1929,61 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     parse_mode="Markdown"
                 )
                 return
+    
+    if pending_transactions[telegram_id].get('type') == 'config':
+        step = pending_transactions[telegram_id].get("step")  
+        if step == 'enter_password':
+            if str(text) != REGISTER_PASSWORD :
+                await update.message.reply_text("🚫 Access Denied – Wrong access code")
+                return
+            else :
+                pending_transactions[telegram_id].update({
+                    "step" : 'select_update'
+                })
+                await selecting_config(update,context)
+                return
+        if step == 'link_update':
+            SUPABASE_URL_temp = str(text)
+            supabase_temp = create_client(SUPABASE_URL_temp, SUPABASE_KEY)
+            try :
+                result = supabase_temp.table("user").select("id").eq("telegram_id", telegram_id).execute()
+                SUPABASE_URL = SUPABASE_URL_temp
+                supabase  = create_client(SUPABASE_URL, SUPABASE_KEY)
+                await update.message.reply_text("🎉 Update successful! Connection is now established.")
+            except :
+                await update.message.reply_text("❌ Connection failed. Update was not applied.")
+            time.sleep(1.5)
+            await selecting_config(update,context) 
+            return
+        elif step == 'link_key':
+     
+            SUPABASE_KEY_temp = str(text)
+            supabase_temp = create_client(SUPABASE_URL, SUPABASE_KEY_temp)
+            try :
+                result = supabase_temp.table("user").select("id").eq("telegram_id", telegram_id).execute()
+                SUPABASE_KEY = SUPABASE_KEY_temp
+                supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+                await update.message.reply_text("🎉 Update successful! Connection is now established.")
+            except :
+                await update.message.reply_text("❌ Connection failed. Update was not applied.")
+            time.sleep(1.5)
+            await selecting_config(update,context) 
+            return
         
-                   
+        elif step == 'access':
+            REGISTER_PASSWORD = str(text)
+            await update.message.reply_text("🎉 Update successful! New access key applied.",message_effect_id=random.choice(SUCCESS_EFFECT_IDS))
+            time.sleep(1.5)
+            await selecting_config(update,context) 
+            return
     await update.message.reply_text("🤖 Sorry, I didn’t understand that. Please use a command like /spend, /get, or /history.")
     return
+
+async def run_scheduler(application):
+    if not scheduler.running:
+        scheduler.add_job(notify_upcoming_bills, 'cron', hour=7, minute=0, id='daily_billing')
+        scheduler.start()
+        print("📅 Scheduler started ...")
 
 app = ApplicationBuilder().token(BOT_TOKEN).post_init(run_scheduler).build()
 
@@ -1829,6 +1995,7 @@ app.add_handler(CommandHandler("get", get_income))
 app.add_handler(CommandHandler("spend", spend))
 app.add_handler(CommandHandler("mod_tx", manage_transaction_command))
 app.add_handler(CommandHandler("mod_sv", manage_saving_command))
+app.add_handler(CommandHandler("config", config))
 # app.add_handler(CommandHandler("history", history))
 # app.add_handler(CommandHandler("info", info))
 
@@ -1849,46 +2016,12 @@ app.add_handler(CallbackQueryHandler(confirm_delete_sv_callback, pattern=r"^conf
 app.add_handler(CallbackQueryHandler(confirm_delete_callback, pattern=r"^confirm_delete_"))
 app.add_handler(CallbackQueryHandler(confirm_edit_sv_callback, pattern=r"^edit_sv"))
 app.add_handler(CallbackQueryHandler(confirm_edit_callback, pattern=r"^edit_"))
+app.add_handler(CallbackQueryHandler(config_callback, pattern=r"^config_"))
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from datetime import datetime, timedelta
-
-scheduler = AsyncIOScheduler()
-
-async def notify_upcoming_bills():
-    msg = "🔔 This is your test billing reminder!"
-    await app.bot.send_message(chat_id=5770120154, text=msg, parse_mode="Markdown")
-
-# async def notify_upcoming_bills():
-    # today = datetime.now().date()
-    # tomorrow = today + timedelta(days=1)
-
-    # response = supabase.table("billing_schedule") \
-    #     .select("*") \
-    #     .eq("due_date", str(tomorrow)) \
-    #     .eq("notified", False) \
-    #     .execute()
-
-    # for bill in response.data:
-    #     user_id = bill["user_id"]
-    #     # msg = (
-    #     #     f"📅 *Upcoming Billing Reminder!*\n\n"
-    #     #     f"🧾 *{bill['billing_name']}*\n"
-    #     #     f"💰 Amount: {bill['amount']}\n"
-    #     #     f"📆 Due Date: {bill['due_date']}"
-    #     # )
-    #    
-    #     try:
-    #         app.bot.send_message(chat_id=5770120154, text=msg, parse_mode="Markdown")
-    #         # supabase.table("billing_schedule").update({"notified": True}).eq("id", bill["id"]).execute()
-    #     except Exception as e:
-    #         print(f"❌ Failed to send reminder to {user_id}: {e}")
-
-# scheduler.add_job(notify_upcoming_bills, 'cron', hour=7)  # runs every day at 07:00
 
 
 def main():
-    print("🤖 Bot is running...")
+    print("🤖 Bot started ...")
     app.run_polling()
      
 
