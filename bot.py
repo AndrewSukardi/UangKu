@@ -8,12 +8,14 @@ import time
 import pytz
 import asyncio
 import random
+from dotenv import load_dotenv
+import os
 
-BOT_TOKEN = "7991293971:AAEDLFpk9TIhwQcu8qNBhv-nTOKgkN9yDF4"
-SUPABASE_URL = "https://jzkipudrxdkimusxbsch.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6a2lwdWRyeGRraW11c3hic2NoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDY2ODYyMCwiZXhwIjoyMDY2MjQ0NjIwfQ.i6KZb9mAsWL2F2Z9asPJczjXZ0Wy4hM8h1R8J5BVwxE"
-REGISTER_PASSWORD = "Siamang123"
-cek = "123"
+load_dotenv()
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+REGISTER_PASSWORD = os.getenv('REGISTER_PASSWORD')
 pending_transactions = {}
 waiting_trasaction = {}
 user_transactions_page_cache = {}
@@ -1981,9 +1983,11 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def run_scheduler(application):
     if not scheduler.running:
+        print("📅 Starting Scheduler ...                    ", end='\r')
         scheduler.add_job(notify_upcoming_bills, 'cron', hour=7, minute=0, id='daily_billing')
         scheduler.start()
-        print("📅 Scheduler started ...")
+        print("😊 Bot and Scheduler are ready to used                  ", end='\r')
+        print()
 
 app = ApplicationBuilder().token(BOT_TOKEN).post_init(run_scheduler).build()
 
@@ -2021,8 +2025,9 @@ app.add_handler(CallbackQueryHandler(config_callback, pattern=r"^config_"))
 
 
 def main():
-    print("🤖 Bot started ...")
+    print("🤖 starting Bot ...",end='\r')
     app.run_polling()
+    
      
 
 if __name__ == "__main__":

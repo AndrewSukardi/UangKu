@@ -4,9 +4,9 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import sys
 import threading
+import os
 
-
-SCRIPT_NAME = "main.py"
+SCRIPT_NAME = "bot.py"
 
 class ReloadHandler(FileSystemEventHandler):
     def __init__(self):
@@ -14,12 +14,15 @@ class ReloadHandler(FileSystemEventHandler):
         self.debounce_timer = None
         self.start_process(True)
 
-    def start_process(self,prints):
+    def start_process(self,first_run):
+        os.system('cls' if os.name == 'nt' else 'clear')
         if self.process:
             self.process.kill()
-        if prints :
+        if first_run :
             print(f"🔁 Running {SCRIPT_NAME}...")
-        self.process = subprocess.Popen([sys.executable, "main.py"])
+        else :
+            print(f"\n🔄 Detected change in {SCRIPT_NAME}, restarting ...")
+        self.process = subprocess.Popen([sys.executable, SCRIPT_NAME])
         
 
     def on_modified(self, event):
@@ -32,7 +35,6 @@ class ReloadHandler(FileSystemEventHandler):
             self.debounce_timer.start()
 
     def restart_script(self):
-        print(f"\n🔄 Detected change in {SCRIPT_NAME}, restarting...")
         self.start_process(False)
 
 if __name__ == "__main__":
