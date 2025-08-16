@@ -13,8 +13,8 @@ import os
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+SUPABASE_URL : str = os.getenv('SUPABASE_URL') or ''
+SUPABASE_KEY : str =  os.getenv('SUPABASE_KEY') or ''
 REGISTER_PASSWORD = os.getenv('REGISTER_PASSWORD')
 pending_transactions = {}
 waiting_trasaction = {}
@@ -148,7 +148,8 @@ def is_valid_float(text):
 
 # == /start ====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    name = update.effective_user.first_name
+    if update.effective_user :
+    name = update.effective_user.first_name 
     await update.message.reply_text(
         f"👋 Hi {name}! Welcome to your personal Finance Tracker Bot.\n\n"
         "To get started, you’ll need a access code from the admin.\n"
@@ -160,26 +161,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
 # === /register ===
 async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    telegram_id = str(update.effective_user.id)
-    name = update.effective_user.first_name
-    # Check password
-    if not context.args or context.args[0] != REGISTER_PASSWORD:
-        await update.message.reply_text("🚫 Access Denied – Wrong access code")
-        return
+    if update.message and update.effective_user :
+        telegram_id = str(update.effective_user.id)
+        name = update.effective_user.first_name
+        # Check password
+        if not context.args or context.args[0] != REGISTER_PASSWORD:
+            await update.message.reply_text("🚫 Access Denied – Wrong access code")
+            return
 
-    # Check if already registered
-    result = supabase.table("user").select("id").eq("telegram_id", telegram_id).execute()
-    if result.data:
-        await update.message.reply_text("✅ Your account are already registered.")
-        return
+        # Check if already registered
+        result = supabase.table("user").select("id").eq("telegram_id", telegram_id).execute()
+        if result.data:
+            await update.message.reply_text("✅ Your account are already registered.")
+            return
 
-    # Insert new user
-    supabase.table("user").insert({
-        "telegram_id": telegram_id,
-        "name": name
-    }).execute()
+        # Insert new user
+        supabase.table("user").insert({
+            "telegram_id": telegram_id,
+            "name": name
+        }).execute()
 
-    await update.message.reply_text(f"🎉 Registration account successful!")
+        await update.message.reply_text(f"🎉 Registration account successful!")
 
 
 # /add_saving
