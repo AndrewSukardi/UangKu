@@ -148,7 +148,7 @@ def is_valid_float(text):
 
 # == /start ====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user :
+    
     name = update.effective_user.first_name 
     await update.message.reply_text(
         f"👋 Hi {name}! Welcome to your personal Finance Tracker Bot.\n\n"
