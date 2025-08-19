@@ -25,17 +25,17 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 scheduler = AsyncIOScheduler()
 jakarta_tz = pytz.timezone("Asia/Jakarta")
 
-SUCCESS_EFFECT_IDS = [
-    "5104841245755180586",  # 🔥
-    "5107584321108051014",  # 👍
-    "5159385139981059251",  # ❤️
-    "5046509860389126442",  # 🎉
-]
+SUCCESS_EFFECT_IDS = {
+    "fire" : "5104841245755180586",  # 🔥
+    "up" : "5107584321108051014",  # 👍
+    "love" : "5159385139981059251",  # ❤️
+    "party" : "5046509860389126442"  # 🎉
+}
 
-FAIL_EFFECT_IDS  = [
-    "5104858069142078462",  # 👎
-    "5046589136895476101",  # 💩
-]
+FAIL_EFFECT_IDS  = {
+    "down" : "5104858069142078462",  # 👎
+    "poo" : "5046589136895476101"  # 💩
+}
 
 SPEND_CATEGORIES = {
     "category_food": "Food",
@@ -156,7 +156,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Once you have it, just type:\n"
         "`/register <access code>`\n\n"
         "Need help? Type `/help` and I’ll guide you through it. 😊\n\n"
-    ,message_effect_id=SUCCESS_EFFECT_IDS[2])
+    ,message_effect_id=SUCCESS_EFFECT_IDS["up"])
 
     
 # === /register ===
@@ -172,7 +172,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Check if already registered
         result = supabase.table("user").select("id").eq("telegram_id", telegram_id).execute()
         if result.data:
-            await update.message.reply_text("✅ Your account are already registered.")
+            await update.message.reply_text("✅ Your account are already registered.",message_effect_id=SUCCESS_EFFECT_IDS["up"])
             return
 
         # Insert new user
@@ -181,7 +181,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "name": name
         }).execute()
 
-        await update.message.reply_text(f"🎉 Registration account successful!")
+        await update.message.reply_text(f"🎉 Registration account successful!",message_effect_id=SUCCESS_EFFECT_IDS["party"])
 
 
 # /add_saving
@@ -314,7 +314,8 @@ async def finish_saving_registration(update, telegram_id):
         "account_number": data["account_number"],
         "interest_rate": data["interest_rate"],
         "has_interest" : pending_transactions[telegram_id]["data"]["has_interest"],
-        "priority": data["priority"]
+        "priority": data["priority"],
+        "print_name" : f"{data['account_name'].upper()} (•••{data['account_number'][-4:]})"
     }).execute()
     if query:
         await query.edit_message_text(
@@ -1101,7 +1102,7 @@ async def manage_saving_command(update: Update, context: ContextTypes.DEFAULT_TY
     }
     
     res = supabase.table("savings_accounts") \
-                .select("id,account_name,account_number,priority,balance,interest_rate") \
+                .select("id,account_name,account_number,priority,balance,interest_rate,print_name") \
                 .eq("user_id", user_id) \
                 .order("priority", desc=False) \
                 .order("account_name", desc=False) \
@@ -1117,9 +1118,9 @@ async def manage_saving_command(update: Update, context: ContextTypes.DEFAULT_TY
         text_line = [f"🏦 Great! Let’s pick a savings account to modify:\n\n"]
         for i, tx in enumerate(txs, start=1):
             text_line.append(
-            f"*{i}.* {tx['account_name'].upper()} (•••{tx['account_number'][-4:]})\n"
-            )
-        text = "".join(text_line) + "\n💬 Please _reply_ with the number of the savings account you want to use."
+            f"*{i}.* {tx['print_name']}\n"
+            )   
+        text = "".join(text_line) + "\n💬 Just send me the number of the savings account you want to pick — like 1 or 2 — and we’ll go from there!"
         
     await update.message.reply_text(text,parse_mode="Markdown") 
     
@@ -1461,7 +1462,35 @@ async def config_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == 'config_done':
         await query.edit_message_text("🎉 All your changes are saved!")
     return  
+
+## TRANSFER
+async def transfer(update : Update,context:ContextTypes.DEFAULT_TYPE):
+    telegram_id = str(update.effective_user.id)
     
+    pending_transactions.pop(telegram_id,None)
+    pending_transactions[telegram_id] = {
+        "type" : "tranfer",
+        "step" : "select_first_saving",
+        "data" : {}
+    }
+    
+    existing = supabase.table("savings_accounts") \
+        .select("id") \
+        .eq("user_id", user_id) \
+        .eq("account_number", data["account_number"]) \
+        .filter("account_name", "ilike", data["account_name"]) \
+        .execute()
+
+    if existing.data:
+        if query:
+            await query.edit_message_text(
+                f"⚠️ Oops! It looks like you’ve already added a saving account named "
+                f"*{data['account_name'].upper()}* with account number ending in *{data['account_number'][-4:]}*.\n",
+                parse_mode="Markdown"
+            )
+    
+    
+    await update.message.reply_text("✨ Ready to move some savings?\n\nJust tell me what you need — I’ve got it covered!")
 # Handle text    
 async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global SUPABASE_URL
@@ -1985,11 +2014,11 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def run_scheduler(application):
     if not scheduler.running:
-        print("📅 Starting Scheduler ...                    ", end='\r')
+        print("📅 Starting Scheduler ...                    ")
+        os.system('cls' if os.name == 'nt' else 'clear')
         scheduler.add_job(notify_upcoming_bills, 'cron', hour=7, minute=0, id='daily_billing')
         scheduler.start()
-        print("😊 Bot and Scheduler are ready to used                  ", end='\r')
-        print()
+        print("😊 Bot and Scheduler are ready to used")
 
 app = ApplicationBuilder().token(BOT_TOKEN).post_init(run_scheduler).build()
 
@@ -2002,6 +2031,7 @@ app.add_handler(CommandHandler("spend", spend))
 app.add_handler(CommandHandler("mod_tx", manage_transaction_command))
 app.add_handler(CommandHandler("mod_sv", manage_saving_command))
 app.add_handler(CommandHandler("config", config))
+app.add_handler(CommandHandler("transfer",transfer))
 # app.add_handler(CommandHandler("history", history))
 # app.add_handler(CommandHandler("info", info))
 
@@ -2027,7 +2057,7 @@ app.add_handler(CallbackQueryHandler(config_callback, pattern=r"^config_"))
 
 
 def main():
-    print("🤖 starting Bot ...",end='\r')
+    print("🤖 starting Bot ...")
     app.run_polling()
     
      
