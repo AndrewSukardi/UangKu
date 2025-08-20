@@ -140,6 +140,13 @@ def is_valid_float(text):
         return 0 <= float_val <= 100  # Optional: limit range if needed
     except ValueError:
         return False
+    
+def is_valid_float_nominal(text):
+    try:
+        float_val = float(text)
+        return 0 < float_val   # Optional: limit range if needed
+    except ValueError:
+        return False
 
     
 #### COMMAND #####
@@ -1400,6 +1407,10 @@ async def confirm_edit_sv_callback(update: Update, context: ContextTypes.DEFAULT
 async def config(update: Update, context: ContextTypes.DEFAULT_TYPE) :
     telegram_id = str(update.effective_user.id)
     
+    if not is_valid(telegram_id):
+        await update.message.reply_text("❌ You are not registered.")
+        return
+    
     pending_transactions.pop(telegram_id,None)
     pending_transactions[telegram_id] = {
         "type" : "config",
@@ -1466,32 +1477,71 @@ async def config_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ## TRANSFER
 async def transfer(update : Update,context:ContextTypes.DEFAULT_TYPE):
     telegram_id = str(update.effective_user.id)
-    
+    user_id = get_user_uuid(telegram_id)
     pending_transactions.pop(telegram_id,None)
+    user_transactions_page_cache.pop(telegram_id,None)
     pending_transactions[telegram_id] = {
         "type" : "tranfer",
-        "step" : "select_first_saving",
-        "data" : {}
+        "step" : "select_source",
+        "data_source" : {},
+        "data_dest" : {},
+        "amount" : 0
     }
     
-    existing = supabase.table("savings_accounts") \
-        .select("id") \
+    res = supabase.table("savings_accounts") \
+        .select("id, account_name, account_number,print_name,balance") \
         .eq("user_id", user_id) \
-        .eq("account_number", data["account_number"]) \
-        .filter("account_name", "ilike", data["account_name"]) \
         .execute()
+        
+    svs =  res.data or []
+    user_transactions_page_cache[telegram_id] = svs
+    
+    if not svs :
+        txt = "💡 It looks like you haven’t created a savings account yet.\n\n" \
+                        "You can create one now by using:\n" \
+                        "/add_saving"
 
-    if existing.data:
-        if query:
-            await query.edit_message_text(
-                f"⚠️ Oops! It looks like you’ve already added a saving account named "
-                f"*{data['account_name'].upper()}* with account number ending in *{data['account_number'][-4:]}*.\n",
-                parse_mode="Markdown"
-            )
+    else :
+        msg = ["✨ *Let’s get started!*\n\nSelect your *source* account below:\n\n"]
+                
+        for i,sv in enumerate(svs,start=1):
+            balance = f"Rp. {int(sv['balance']):,}" if sv['balance'] > 0 else "No Balance"
+            msg.append(f"*{i}. {sv['print_name']}* - {balance}\n")
+        
+        txt = ''.join(msg) + "\n👉 Reply with the number of the account you want.\nFor example, type 1 for the first account."
     
     
-    await update.message.reply_text("✨ Ready to move some savings?\n\nJust tell me what you need — I’ve got it covered!")
-# Handle text    
+    await update.message.reply_text(txt,parse_mode="Markdown")
+
+async def confirm_tranfer_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    telegram_id = str(query.from_user.id)
+    await query.answer()
+    
+    if query.data == "trf_yes":
+        try :
+            supabase.rpc("transfer_amount",{
+                "sv_id_src" : pending_transactions[telegram_id]["data_source"]['id'],
+                "sv_id_dst" : pending_transactions[telegram_id]["data_dest"]['id'],
+                "amount" : pending_transactions[telegram_id]["amount"]
+            }).execute()
+            
+            await query.edit_message_text("🎉 Your transfer was successful!")
+            
+        except Exception as e :
+            await query.edit_message_text(f"⚠️ Oops! The transfer didn’t go through.")
+    
+    elif query.data == "trf_no":
+        pending_transactions.pop(telegram_id,None)
+        user_transactions_page_cache.pop(telegram_id,None)
+        await query.edit_message_text(
+                f"❌ Transfer canceled. No changes were made.",
+                parse_mode="Markdown",
+            ) 
+        return
+
+# Handle text  
+  
 async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global SUPABASE_URL
     global SUPABASE_KEY
@@ -1742,7 +1792,8 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pending_transactions[telegram_id]["data"].update({
                 "saving_id" : int(tx['id']),
                 "saving_name" : f"{tx['account_name']} (•••{tx['account_number'][-4:]})"
-            })
+                })
+                
                 
                 keyboard = [
                     [InlineKeyboardButton("💼 Salary", callback_data="category_salary"),
@@ -1897,7 +1948,7 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await manage_edit(update,telegram_id)
                 else :
                     await update.message.reply_text(
-                        "⚠️ Just reply with the number of your selection.",
+                        "⚠️ Reply with the number of your saving account.",
                         parse_mode="Markdown"
                     )
                 return
@@ -2005,16 +2056,157 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         elif step == 'access':
             REGISTER_PASSWORD = str(text)
-            await update.message.reply_text("🎉 Update successful! New access key applied.",message_effect_id=random.choice(SUCCESS_EFFECT_IDS))
+            try :
+                supabase.table('user').update({'access_key': str(text)}).eq('id', user_id).execute()
+                await update.message.reply_text("🎉 Update successful! New access key applied.",message_effect_id=SUCCESS_EFFECT_IDS['party'])
+
+            except:
+                await update.message.reply_text(f"😥 Update failed!",message_effect_id=FAIL_EFFECT_IDS["poo"])
+                
             time.sleep(1.5)
             await selecting_config(update,context) 
             return
+        
+    if pending_transactions[telegram_id].get('type') == 'tranfer':
+        step = pending_transactions[telegram_id].get("step")  
+        if step == 'select_source':
+            if text.isdigit():
+                svs = user_transactions_page_cache.get(telegram_id)
+                
+                index = int(text) - 1
+                if not svs or index >= len(svs):
+                    await update.message.reply_text("⚠️ Invalid selection.")
+                    return
+                
+                sv = svs[index]
+                
+                if sv['balance'] <= 0 :
+                    await update.message.reply_text("💡 Looks like this account is empty right now.")
+                    time.sleep(1.5)
+                    await transfer(update,context)
+                    return
+                
+                pending_transactions[telegram_id]['data_source'] = sv
+                pending_transactions[telegram_id].update({
+                    'step' : 'select_destination'
+                })
+                user_transactions_page_cache.pop(telegram_id,None)
+                
+                
+                res = supabase.table("savings_accounts") \
+                    .select("id, account_name, account_number,print_name,balance") \
+                    .eq("user_id", user_id) \
+                    .neq("id",sv['id']) \
+                    .execute()
+                
+                svs =  res.data or []
+                user_transactions_page_cache[telegram_id] = svs
+                
+                if not svs :
+                    await update.message.reply_text("💡 It looks like you only created a single savings account.\n\n" \
+                                    "You can create another saving by using:\n" \
+                                    "/add_saving") 
+                    return  
+
+                msg = ["✨ *Where should we send the money ?*\n\nSelect your *destination* account below:\n\n"]
+                        
+                for i,sv in enumerate(svs,start=1):
+                    balance = f"Rp. {int(sv['balance']):,}" if sv['balance'] > 0 else "No Balance"
+                    msg.append(f"*{i}. {sv['print_name']}* - {balance}\n")
+                   
+                
+                txt = ''.join(msg) + "\n👉 Reply with the number of the account you want.\nFor example, type 1 for the first account."
+                await update.message.reply_text(txt,parse_mode="Markdown")
+                return
+                                
+            else :
+                            
+                await update.message.reply_text(
+                        "⚠️ Reply with the number of your saving account.",
+                        parse_mode="Markdown"
+                    )
+                return
+        if step == 'select_destination':
+            if text.isdigit():
+                svs = user_transactions_page_cache.get(telegram_id)
+                
+                index = int(text) - 1
+                if not svs or index >= len(svs):
+                    await update.message.reply_text("⚠️ Invalid selection.")
+                    return
+                
+                sv = svs[index]
+                
+                pending_transactions[telegram_id]['data_dest'] = sv
+                pending_transactions[telegram_id].update({
+                    'step' : 'trf_nominal'
+                })
+                await update.message.reply_text('💸 How much would you like to transfer?',parse_mode="Markdown")
+                
+                return
+            else :
+                await update.message.reply_text(
+                        "⚠️ Reply with the number of your saving account.",
+                        parse_mode="Markdown"
+                    )
+                return
+        
+        if step == 'trf_nominal':
+            if is_valid_float_nominal(text):
+        
+                amount = float(text)
+                
+                if amount > pending_transactions[telegram_id]['data_source']['balance'] :
+                    await update.message.reply_text(
+                        "⚠️ Insufficient funds in the source account.", parse_mode="Markdown")
+                    return
+                
+                pending_transactions[telegram_id].update({
+                    "amount" : amount
+                })
+                
+                buttons = [            
+                        [
+                    InlineKeyboardButton("✅ Yes", callback_data="trf_yes"),
+                    InlineKeyboardButton("❌ No", callback_data="trf_no"),
+                        ]]
+                markup = InlineKeyboardMarkup(buttons)
+                
+                source_balance_after = pending_transactions[telegram_id]['data_source']['balance'] - amount
+                dest_balance_after  = pending_transactions[telegram_id]['data_dest']['balance'] + amount
+                
+                source_balance_before = f"Rp. {int(pending_transactions[telegram_id]['data_source']['balance']):,}"
+                source_balance_after = f"Rp. {int(source_balance_after):,}" if source_balance_after > 0 else "No Balance"
+               
+                dest_balance_before = f"Rp. {int(pending_transactions[telegram_id]['data_dest']['balance']):,}"  if pending_transactions[telegram_id]['data_dest']['balance'] > 0 else "No Balance"
+                dest_balance_after = f"Rp. {int(dest_balance_after):,}" 
+                
+                msg = "🚀 Ready to Transfer?\n\n" \
+                    f"Amount: Rp {amount:,}\n\n" \
+                    f"From: {pending_transactions[telegram_id]['data_source']['print_name']})\n" \
+                    f"💰 {source_balance_before} → {source_balance_after}\n\n" \
+                    f"To: {pending_transactions[telegram_id]['data_dest']['print_name']})\n" \
+                    f"💰 {dest_balance_before} → {dest_balance_after}\n\n" \
+                    f"💸 Are you sure you want to proceed with this transfer?"
+                    
+                await update.message.reply_text(msg,reply_markup=markup, parse_mode="Markdown")
+                return
+                
+
+            else :
+                await update.message.reply_text(
+                        "⚠️ Oops! Please enter a valid amount to transfer.",
+                        parse_mode="Markdown"
+                    )
+                return
+
+            
     await update.message.reply_text("🤖 Sorry, I didn’t understand that. Please use a command like /spend, /get, or /history.")
     return
 
 async def run_scheduler(application):
     if not scheduler.running:
-        print("📅 Starting Scheduler ...                    ")
+        print("📅 Starting Scheduler ...")
         os.system('cls' if os.name == 'nt' else 'clear')
         scheduler.add_job(notify_upcoming_bills, 'cron', hour=7, minute=0, id='daily_billing')
         scheduler.start()
@@ -2053,6 +2245,7 @@ app.add_handler(CallbackQueryHandler(confirm_delete_callback, pattern=r"^confirm
 app.add_handler(CallbackQueryHandler(confirm_edit_sv_callback, pattern=r"^edit_sv"))
 app.add_handler(CallbackQueryHandler(confirm_edit_callback, pattern=r"^edit_"))
 app.add_handler(CallbackQueryHandler(config_callback, pattern=r"^config_"))
+app.add_handler(CallbackQueryHandler(confirm_tranfer_callback, pattern=r"^trf_"))
 
 
 
