@@ -1415,7 +1415,7 @@ async def config(update: Update, context: ContextTypes.DEFAULT_TYPE) :
     pending_transactions[telegram_id] = {
         "type" : "config",
         "step" : "enter_password",
-        "data" : {}
+        "new_password" : ""
     }
     
     await update.message.reply_text("🔑 Please enter the access code to continue")
@@ -1449,6 +1449,7 @@ async def selecting_config(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def config_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     telegram_id = str(query.from_user.id)
+    user_id = get_user_uuid(telegram_id)
     await query.answer()
     
     if query.data == 'config_link':
@@ -1471,6 +1472,9 @@ async def config_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🔑 What’s the new access key ?")
     
     elif query.data == 'config_done':
+        passkey = pending_transactions[telegram_id].get("new_password",None)
+        if passkey:
+            supabase.table('user').update({'access_key': passkey}).eq('id', user_id).execute()
         await query.edit_message_text("🎉 All your changes are saved!")
     return  
 
@@ -1540,6 +1544,21 @@ async def confirm_tranfer_callback(update: Update, context: ContextTypes.DEFAULT
             ) 
         return
 
+
+async def add_bill(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    telegram_id = str(update.effective_user.id)
+    user_id = get_user_uuid(telegram_id)
+    pending_transactions.pop(telegram_id,None)
+    user_transactions_page_cache.pop(telegram_id,None)
+    pending_transactions[telegram_id] = {
+        "type" : "add_bill",
+        "step" : "amount",
+        "data" : {}
+    }
+    
+    
+    await update.message.reply_text("📝 Let’s Add a Bill!.\n\n💸How much is it?",parse_mode="Markdown")
+    
 # Handle text  
   
 async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2055,13 +2074,28 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         elif step == 'access':
+           
             REGISTER_PASSWORD = str(text)
-            try :
-                supabase.table('user').update({'access_key': str(text)}).eq('id', user_id).execute()
-                await update.message.reply_text("🎉 Update successful! New access key applied.",message_effect_id=SUCCESS_EFFECT_IDS['party'])
+            res = supabase.table("user") \
+                    .select("access_key") \
+                    .eq("id", user_id) \
+                    .execute()
+            
+            key = res.data  
+                 
+            if str(text) == key[0]['access_key']:
+                await update.message.reply_text(f"😥 Update failed! Access Key cannot be same !!!",message_effect_id=FAIL_EFFECT_IDS["poo"])
+            
+            else :
+                pending_transactions[telegram_id].update({
+                    "new_password" : str(text)
+                })
+                try :
+                    # supabase.table('user').update({'access_key': str(text)}).eq('id', user_id).execute()
+                    await update.message.reply_text("🎉 Update successful!",message_effect_id=SUCCESS_EFFECT_IDS['party'])
 
-            except:
-                await update.message.reply_text(f"😥 Update failed!",message_effect_id=FAIL_EFFECT_IDS["poo"])
+                except:
+                    await update.message.reply_text(f"😥 Update failed!",message_effect_id=FAIL_EFFECT_IDS["poo"])
                 
             time.sleep(1.5)
             await selecting_config(update,context) 
@@ -2199,8 +2233,50 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         parse_mode="Markdown"
                     )
                 return
-
             
+    if pending_transactions[telegram_id].get('type') == 'add_bill':
+        step = pending_transactions[telegram_id].get("step")  
+        if step == 'amount':
+            if is_valid_float_nominal(text):
+                
+                pending_transactions[telegram_id]["data"].update({
+                    "amount" : float(text)
+                })
+                
+                pending_transactions[telegram_id]["step"] = "saving"
+                
+                res = supabase.table("savings_accounts") \
+                    .select("id,print_name,balance") \
+                    .eq("user_id", user_id) \
+                    .eq("saving_type","credit") \
+                    .execute()
+                
+                svs =  res.data or []
+                user_transactions_page_cache[telegram_id] = svs
+                
+                if not svs :
+                    txt = "💡 It looks like you haven’t created a credit savings account yet.\n\n" \
+                                    "You can create one now by using:\n" \
+                                    "/add_saving"
+                                    
+                else :
+                    msg = ["✨ *Let’s get started!*\n\nSelect your credit account below:"]
+                    
+                    for i,sv in enumerate(svs,start=1):
+                        balance = f"Rp. {int(sv['balance']):,}" if sv['balance'] > 0 else "No Balance"
+                        msg.append(f"*{i}. {sv['print_name']}* - {balance}\n")
+                await update.message.reply_text(
+                        "⚠️ Oops! Please enter a valid amount to transfer.",
+                        parse_mode="Markdown"
+                )
+                
+                return
+            else :
+                await update.message.reply_text(
+                        "⚠️ Oops! Please enter a valid amount to transfer.",
+                        parse_mode="Markdown"
+                )
+                return
     await update.message.reply_text("🤖 Sorry, I didn’t understand that. Please use a command like /spend, /get, or /history.")
     return
 
@@ -2224,6 +2300,7 @@ app.add_handler(CommandHandler("mod_tx", manage_transaction_command))
 app.add_handler(CommandHandler("mod_sv", manage_saving_command))
 app.add_handler(CommandHandler("config", config))
 app.add_handler(CommandHandler("transfer",transfer))
+app.add_handler(CommandHandler("add_bill",add_bill))
 # app.add_handler(CommandHandler("history", history))
 # app.add_handler(CommandHandler("info", info))
 
