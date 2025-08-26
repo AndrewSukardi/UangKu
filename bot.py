@@ -1511,7 +1511,8 @@ async def transfer(update : Update,context:ContextTypes.DEFAULT_TYPE):
         for i,sv in enumerate(svs,start=1):
             balance = f"Rp. {int(sv['balance']):,}" if sv['balance'] > 0 else "No Balance"
             msg.append(f"*{i}. {sv['print_name']}* - {balance}\n")
-        
+            
+       
         txt = ''.join(msg) + "\n👉 Reply with the number of the account you want.\nFor example, type 1 for the first account."
     
     
@@ -2260,16 +2261,21 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                     "/add_saving"
                                     
                 else :
-                    msg = ["✨ *Let’s get started!*\n\nSelect your credit account below:"]
+                    msg = ["✨ *Let’s get started!*\n\nSelect your credit account below:\n\n"]
                     
                     for i,sv in enumerate(svs,start=1):
-                        balance = f"Rp. {int(sv['balance']):,}" if sv['balance'] > 0 else "No Balance"
+                        balance = f"Rp. {int(sv['balance']):,}" if sv['balance'] > 0 else "No outstanding balance"
                         msg.append(f"*{i}. {sv['print_name']}* - {balance}\n")
+                        
+                    msg.append(f"*{len(svs)+1}. None*\n")
+                     
+                    txt = ''.join(msg) + "\n👉 Reply with the number of the account you want.\nFor example, type 1 for the first account."
+                    
+                    
                 await update.message.reply_text(
-                        "⚠️ Oops! Please enter a valid amount to transfer.",
+                        txt,
                         parse_mode="Markdown"
                 )
-                
                 return
             else :
                 await update.message.reply_text(
