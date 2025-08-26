@@ -1554,7 +1554,7 @@ async def add_bill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pending_transactions[telegram_id] = {
         "type" : "add_bill",
         "step" : "amount",
-        "data" : {}
+        "data_saving" : {}
     }
     
     
@@ -2279,10 +2279,30 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
             else :
                 await update.message.reply_text(
-                        "⚠️ Oops! Please enter a valid amount to transfer.",
+                        "⚠️ Oops! Please enter a valid amount.",
                         parse_mode="Markdown"
                 )
                 return
+            
+        if step == 'saving':
+            if text.isdigit():
+                
+                index = int(text) - 1
+                svs = user_transactions_page_cache[telegram_id]
+                
+                if not svs or index > len(svs):
+                    await update.message.reply_text("⚠️ Invalid selection.")
+                
+                if index == len(svs):
+                    pending_transactions[telegram_id]["data_saving"] = None
+                else :
+                    pending_transactions[telegram_id]["data_saving"] = svs[index]
+                
+            else :
+                await update.message.reply_text(
+                        "⚠️ Reply with the number of your saving account.",
+                        parse_mode="Markdown"
+                    )
     await update.message.reply_text("🤖 Sorry, I didn’t understand that. Please use a command like /spend, /get, or /history.")
     return
 
