@@ -97,14 +97,14 @@ class MainPage extends StatelessWidget {
 
   Widget _buildBottomBar(BuildContext context) {
     return PhysicalShape(
-      clipper: BottomBarClipper(notchWidth: 180, notchDepth: 40),
+      clipper: BottomBarClipper(notchWidth: 160, notchDepth: 37),
       color: context.colors.onPrimary,
       elevation: 12,
-      shadowColor: Colors.black26,
+      shadowColor: context.colors.onPrimary,
       child: Material(
         type: MaterialType.transparency, 
         child: SizedBox(
-          height: 85,
+          height: 80,
           child: Row(
             children: [
               Expanded(
@@ -113,7 +113,7 @@ class MainPage extends StatelessWidget {
                   index: 0,
                   label: "Home",
                   outline: PhosphorIconsRegular.house,
-                  fill: PhosphorIconsFill.house,
+                  fill: PhosphorIconsBold.house,
                 ),
               ),
               Expanded(
@@ -134,7 +134,7 @@ class MainPage extends StatelessWidget {
                   index: 2,
                   label: "Budget",
                   outline: PhosphorIconsRegular.handCoins,
-                  fill: PhosphorIconsFill.handCoins,
+                  fill: PhosphorIconsBold.handCoins,
                 ),
               ),
               Expanded(
@@ -143,7 +143,7 @@ class MainPage extends StatelessWidget {
                   index: 3,
                   label: "Credit",
                   outline: PhosphorIconsRegular.creditCard,
-                  fill: PhosphorIconsFill.creditCard,
+                  fill: PhosphorIconsBold.creditCard,
                 ),
               ),
             ],
@@ -179,7 +179,7 @@ class MainPage extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(selected ? fill : outline, color: color, size: 24),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   label,
                   style: TextStyle(

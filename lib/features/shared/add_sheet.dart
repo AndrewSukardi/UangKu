@@ -118,17 +118,23 @@ class _CreateSheetState extends State<AddSheet> {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         "Quick Add",
-                        style: Theme.of(context).textTheme.headlineLarge
-                            ?.copyWith(color: context.extra.grayColor),
+                        style: Theme.of(context).textTheme.headlineLarge,
                       ),
                     ),
+
+                    SizedBox(height: 8),
+
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         "What would you like to do ?",
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: context.extra.grayColor,
+                        ),
                       ),
                     ),
+
+                    SizedBox(height: 16),
                   ],
                 ),
               ),
