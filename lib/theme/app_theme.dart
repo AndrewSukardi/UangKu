@@ -20,6 +20,8 @@ class AppTheme {
 
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       elevation: 4,
+
+      backgroundColor: Color(0xFF59C7D8),
     ),
 
     navigationBarTheme: NavigationBarThemeData(
@@ -34,7 +36,6 @@ class AppTheme {
 
         return const TextStyle(color: Colors.grey);
       }),
-
 
       iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>((states) {
         if (states.contains(WidgetState.selected)) {
@@ -54,8 +55,18 @@ class AppTheme {
         success: ColorLibrary.successLight,
         error: ColorLibrary.errorLight,
         warning: ColorLibrary.warningLight,
+        grayColor: ColorLibrary.n50,
       ),
     ],
+
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.bold),
+      headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+      titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+    ),
   );
 
   static final dark = ThemeData(
@@ -66,13 +77,17 @@ class AppTheme {
       secondary: Color(0xFFF5C84C),
       secondaryContainer: Color(0xFF7A6112),
 
-      surface: Color(0xFF15181B),
+      surface: Color(0xFF262626),
       onSurface: Colors.white,
 
       onPrimary: Colors.black,
       onSecondary: Colors.black,
     ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      elevation: 4,
 
+      backgroundColor: Color(0xFF59C7D8),
+    ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: const Color(0xFF181A1E),
 
@@ -86,19 +101,14 @@ class AppTheme {
         return const IconThemeData(color: Colors.grey);
       }),
 
-      
-
-      
-      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+      labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((states) {
         if (states.contains(WidgetState.selected)) {
-          return const TextStyle(
-            color: Color(0xFF59C7D8),
-            fontWeight: FontWeight.bold,
-          );
+          return const TextStyle(fontWeight: FontWeight.bold);
         }
 
-        return const TextStyle(color: Colors.white);
+        return const TextStyle(color: Colors.grey);
       }),
+
       indicatorColor: const Color(0xFFBCEEF5),
     ),
 
@@ -109,6 +119,7 @@ class AppTheme {
         success: ColorLibrary.successDark,
         error: ColorLibrary.errorDark,
         warning: ColorLibrary.warningDark,
+        grayColor: ColorLibrary.n50,
       ),
     ],
   );

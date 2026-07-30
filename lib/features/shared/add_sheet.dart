@@ -112,12 +112,24 @@ class _CreateSheetState extends State<AddSheet> {
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "What would you like to add ?",
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+                child: Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "Quick Add",
+                        style: Theme.of(context).textTheme.headlineLarge
+                            ?.copyWith(color: context.extra.grayColor),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "What would you like to do ?",
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
