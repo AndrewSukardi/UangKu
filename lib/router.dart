@@ -7,7 +7,7 @@ import 'features/home/home_page.dart';
 import 'features/wallet/wallet_page.dart';
 import 'features/budget/budget_page.dart';
 import 'features/credit/credit_page.dart';
-import 'features/shared/add_sheet.dart';
+import 'features/shared/action_sheet.dart';
 import 'utils/custom_painter.dart';
 
 StatefulShellBranch addBraches(String path, Widget page) {
@@ -63,7 +63,7 @@ class MainPage extends StatelessWidget {
     const double barBottomMargin = 20;
     const double fabSize = 60;
     const double fabPopHeight =
-        30; // how much sticks out above the bar — lower this to reduce popup
+        45; // how much sticks out above the bar — lower this to reduce popup
 
     return Scaffold(
       body: Stack(
@@ -97,7 +97,7 @@ class MainPage extends StatelessWidget {
 
   Widget _buildBottomBar(BuildContext context) {
     return PhysicalShape(
-      clipper: BottomBarClipper(notchWidth: 160, notchDepth: 37),
+      clipper: BottomBarClipper(notchWidth: 175, notchDepth: 50),
       color: context.colors.onPrimary,
       elevation: 12,
       shadowColor: context.colors.onPrimary,
@@ -106,6 +106,7 @@ class MainPage extends StatelessWidget {
         child: SizedBox(
           height: 80,
           child: Row(
+            spacing: 10,
             children: [
               Expanded(
                 child: _navItem(
@@ -206,7 +207,7 @@ class MainPage extends StatelessWidget {
         onPressed: () {
           showModalBottomSheet(
             context: context,
-            builder: (_) => const AddSheet(isRouter: true),
+            builder: (_) => const ActionSheet(isRouter: true),
           );
         },
         child: Icon(

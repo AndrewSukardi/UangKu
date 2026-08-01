@@ -7,4 +7,7 @@ extension ThemeContext on BuildContext {
   ColorScheme get colors => theme.colorScheme;
 
   ExtraColors get extra => theme.extension<ExtraColors>()!;
+
+  TextTheme get text => theme.textTheme;
+
 }

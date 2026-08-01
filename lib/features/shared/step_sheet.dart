@@ -4,7 +4,7 @@ class TransactionStep {
   final String title;
   final Widget content;
 
-  const TransactionStep({required this.title, required this.content});
+  const TransactionStep({required this.title, required this.content,});
 }
 
 class SourceStep extends StatelessWidget {
