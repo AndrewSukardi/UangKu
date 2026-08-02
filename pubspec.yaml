@@ -41,6 +41,7 @@ dependencies:
   shared_preferences: ^2.5.5
   dio: ^5.10.0
   phosphoricons_flutter: ^1.0.0
+  flutter_local_notifications: ^22.2.0
 
 dev_dependencies:
   flutter_test:
@@ -86,9 +87,10 @@ flutter_native_splash:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/images/logo.png
+  image_path: assets/images/icon.png
   adaptive_icon_background: "#55bec5"
-  adaptive_icon_foreground: assets/images/logo.png
+  adaptive_icon_foreground: assets/images/icon.png
+  adaptive_icon_monochrome: assets/images/monochrome.png
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

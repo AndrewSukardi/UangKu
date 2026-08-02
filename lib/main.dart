@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'router.dart';
 import 'package:UangKu/theme/app_theme.dart';
+import 'package:UangKu/services/notification_service.dart';
 
-void main(){
+Future<void> main() async {
 
   WidgetsFlutterBinding.ensureInitialized();
 
+  await NotificationService.initialize();
+  
   runApp(
     const ProviderScope(child: MyApp(),
     ),
