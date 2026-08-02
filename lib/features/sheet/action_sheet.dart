@@ -1,8 +1,9 @@
 import 'package:UangKu/theme/theme_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:UangKu/utils/wizard.dart';
-import 'package:UangKu/features/shared/step_sheet.dart';
+import 'package:UangKu/features/sheet/step_sheet.dart';
 import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
+import 'package:UangKu/utils/icon_assets.dart';
 
 // final pages = {
 //   'router': SelectPage(),
@@ -43,7 +44,12 @@ class ActionSheet extends StatefulWidget {
   final String titleRouter;
   final AddType? type;
 
-  const ActionSheet({super.key, required this.isRouter, this.titleRouter = '', this.type});
+  const ActionSheet({
+    super.key,
+    required this.isRouter,
+    this.titleRouter = '',
+    this.type,
+  });
 
   @override
   State<ActionSheet> createState() => _CreateSheetState();
@@ -95,7 +101,7 @@ class _CreateSheetState extends State<ActionSheet> {
           ),
           child: Center(
             child: Image.asset(
-              'assets/icon/transaction.png',
+              IconAssets.transaction.path,
               width: 24,
               height: 24,
             ),
@@ -114,7 +120,7 @@ class _CreateSheetState extends State<ActionSheet> {
             borderRadius: BorderRadius.circular(14),
           ),
           child: Center(
-            child: Image.asset('assets/icon/budget.png', width: 24, height: 24),
+            child: Image.asset(IconAssets.budget.path, width: 24, height: 24),
           ),
         ),
         "Create a category spending limit",
@@ -131,7 +137,7 @@ class _CreateSheetState extends State<ActionSheet> {
           ),
           child: Center(
             child: Image.asset(
-              'assets/icon/credit-card.png',
+              IconAssets.creditCard.path,
               width: 24,
               height: 24,
             ),
@@ -151,8 +157,8 @@ class _CreateSheetState extends State<ActionSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 80,
-                height: 2.5,
+                width: 75,
+                height: 3,
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade400,
@@ -162,7 +168,13 @@ class _CreateSheetState extends State<ActionSheet> {
 
               const SizedBox(height: 6),
 
-              StepHeader(title: "Quick Add",subtitle: "What would you like to do ?",showCloseButton: false,showIndicatorStep: false,),
+              StepHeader(
+                title: "Quick Add",
+                subtitle: "What would you like to do ?",
+                showCloseButton: false,
+                showIndicatorStep: false,
+              ),
+
               // Padding(
               //   padding: const EdgeInsets.symmetric(horizontal: 6),
               //   child: Column(
@@ -192,12 +204,11 @@ class _CreateSheetState extends State<ActionSheet> {
               //     ],
               //   ),
               // ),
-
               const SizedBox(height: 12),
 
               ...items.map((item) {
                 final isSelected = selectedType == item.type;
-                 
+
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
@@ -213,6 +224,7 @@ class _CreateSheetState extends State<ActionSheet> {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     horizontalTitleGap: 8,
+
                     titleTextStyle: Theme.of(context).textTheme.labelMedium,
 
                     contentPadding: const EdgeInsets.symmetric(horizontal: 5),
@@ -264,8 +276,11 @@ class _CreateSheetState extends State<ActionSheet> {
                           showModalBottomSheet(
                             context: context,
                             isScrollControlled: true,
-                            builder: (_) =>
-                                ActionSheet(isRouter: false, titleRouter: selectedTitle,type: selectedType),
+                            builder: (_) => ActionSheet(
+                              isRouter: false,
+                              titleRouter: selectedTitle,
+                              type: selectedType,
+                            ),
                           );
                         },
                   child: Row(
@@ -274,9 +289,13 @@ class _CreateSheetState extends State<ActionSheet> {
                     children: [
                       Text(
                         "Continue",
-                        style: Theme.of(context).textTheme.titleMedium,
+                        style: context.text.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      const Icon(PhosphorIconsRegular.caretRight, size: 16),
+
+                      const SizedBox(width: 4),
+                      Icon(PhosphorIconsBold.arrowRight, size: 16),
                     ],
                   ),
                 ),
@@ -299,18 +318,18 @@ class _CreateSheetState extends State<ActionSheet> {
       padding: EdgeInsets.only(bottom: keyboardHeight),
       child: SingleChildScrollView(
         child: Padding(
-          padding:  const EdgeInsets.fromLTRB(
-        20, // left
-        20, // top
-        20, // right
-        40, // bottom
-      ),
+          padding: const EdgeInsets.fromLTRB(
+            20, // left
+            20, // top
+            20, // right
+            40, // bottom
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 80,
-                height: 2.5,
+                width: 75,
+                height: 3,
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade400,
@@ -326,12 +345,12 @@ class _CreateSheetState extends State<ActionSheet> {
               //   titles: currentSteps.map((e) => e.title).toList(),
               // ),
               StepHeader(
-                title: widget.titleRouter  ,
+                title: widget.titleRouter,
                 subtitle: currentSteps[currentStep].title,
                 currentStep: currentStep,
                 totalSteps: currentSteps.length,
                 activeColor: Colors.blue,
-                showCloseButton: true,
+                showCloseButton: false,
               ),
 
               const SizedBox(height: 24),
@@ -345,31 +364,68 @@ class _CreateSheetState extends State<ActionSheet> {
 
               Row(
                 children: [
-                  if (currentStep > 0)
-                    ElevatedButton(
+                  Expanded(
+                    flex: 1,
+                    child: ElevatedButton(
                       onPressed: () {
-                        setState(() {
-                          currentStep--;
-                        });
+                        if (currentStep > 0) {
+                          setState(() {
+                            currentStep--;
+                          });
+                        } else {
+                          Navigator.pop(context);
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            builder: (_) => const ActionSheet(isRouter: true),
+                          );
+                        }
                       },
-                      child: const Text("Back"),
+                      child: Text(
+                        currentStep > 0 ? "Back" : "Change",
+                        style: context.text.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
+                  ),
 
-                  const Spacer(),
+                  const SizedBox(width: 12),
 
-                  ElevatedButton(
-                    onPressed: () {
-                      FocusScope.of(context).unfocus();
-                      if (currentStep < currentSteps.length - 1) {
-                        setState(() {
-                          currentStep++;
-                        });
-                      } else {
-                        Navigator.pop(context);
-                      }
-                    },
-                    child: Text(
-                      currentStep == currentSteps.length - 1 ? "Save" : "Next",
+                  Expanded(
+                    flex: (currentStep > 0 || currentStep == 0) ? 2 : 1,
+
+                    child: ElevatedButton(
+                      // onTap:(){
+
+                      // },
+                      
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: selectedType == null
+                            ? Colors.grey
+                            : context.colors.primary,
+                        foregroundColor: selectedType == null
+                            ? Colors.grey.shade300
+                            : Colors.black,
+                      ),
+                      onPressed: () {
+                          FocusScope.of(context).unfocus();
+                          if (currentStep < currentSteps.length - 1) {
+                            setState(() {
+                              currentStep++;
+                            });
+                          } else {
+                            Navigator.pop(context);
+                          }
+                        },
+                      child: Text(
+                        currentStep == currentSteps.length - 1
+                            ? "Save"
+                            : "Next",
+                        style: context.text.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
