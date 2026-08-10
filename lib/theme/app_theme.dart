@@ -55,7 +55,8 @@ class AppTheme {
         success: ColorLibrary.successLight,
         error: ColorLibrary.errorLight,
         warning: ColorLibrary.warningLight,
-        grayColor: ColorLibrary.n50,
+        grayColor: ColorLibrary.containerDisabledLight,
+        grayText: ColorLibrary.n50,
       ),
     ],
 
@@ -82,6 +83,7 @@ class AppTheme {
 
       onPrimary: Colors.black,
       onSecondary: Colors.black,
+
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       elevation: 4,
@@ -119,7 +121,8 @@ class AppTheme {
         success: ColorLibrary.successDark,
         error: ColorLibrary.errorDark,
         warning: ColorLibrary.warningDark,
-        grayColor: ColorLibrary.n50,
+        grayColor: ColorLibrary.containerDisabledDark,
+        grayText: ColorLibrary.n50,
       ),
     ],
   );

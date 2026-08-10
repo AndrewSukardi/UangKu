@@ -39,7 +39,7 @@ class StepHeader extends StatelessWidget {
                 subtitle,
                 style: Theme.of(
                   context,
-                ).textTheme.bodySmall?.copyWith(color: context.extra.grayColor),
+                ).textTheme.bodySmall?.copyWith(color: context.extra.grayText),
               ),
           ],
         ),

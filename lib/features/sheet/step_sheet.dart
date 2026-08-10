@@ -1,10 +1,11 @@
+import 'package:UangKu/theme/theme_extensions.dart';
 import 'package:flutter/material.dart';
 
-class TransactionStep {
+class ActionSheetStep {
   final String title;
   final Widget content;
 
-  const TransactionStep({required this.title, required this.content,});
+  const ActionSheetStep({required this.title, required this.content});
 }
 
 class SourceStep extends StatelessWidget {
@@ -22,6 +23,8 @@ class SourceStep extends StatelessWidget {
     );
   }
 }
+
+
 
 class TransactionTypeStep extends StatelessWidget {
   const TransactionTypeStep({super.key});

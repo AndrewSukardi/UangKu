@@ -44,75 +44,131 @@ final router = GoRouter(
   ],
 );
 
-class MainPage extends StatelessWidget {
+class MainPage extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainPage({super.key, required this.navigationShell});
 
+  @override
+  State<MainPage> createState() => _MainPageState();
+}
+
+class _MainPageState extends State<MainPage> {
+  // One GlobalKey per nav item icon, used to measure its on-screen center
+  // so the indicator dash can animate underneath it.
+  final List<GlobalKey> _itemKeys = List.generate(4, (_) => GlobalKey());
+  final GlobalKey _stackKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
   void _onTap(int index) {
-    navigationShell.goBranch(
+    widget.navigationShell.goBranch(
       index,
-      initialLocation: index == navigationShell.currentIndex,
+      initialLocation: index == widget.navigationShell.currentIndex,
     );
   }
 
+ 
+
   @override
   Widget build(BuildContext context) {
+    // Re-measure every build so a tab switch (even via deep link/back button)
+    // moves the dash to the right spot.
+
     return Scaffold(
-      body: navigationShell,
+      extendBody: true,
+      body: widget.navigationShell,
 
-      floatingActionButton: buildFab(context),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: _buildFloatingNavBar(context),
+    );
+  }
 
-      bottomNavigationBar: BottomAppBar(
-        color: context.colors.onPrimary,
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        // elevation: 8,
-        child: SizedBox(
-          height: 72,
-          child: Row(
-            children: [
-              Expanded(
-                child: _navItem(
-                  context,
-                  index: 0,
-                  label: "Home",
-                  outline: PhosphorIconsRegular.house,
-                  fill: PhosphorIconsFill.house,
-                ),
-              ),
-              Expanded(
-                child: _navItem(
-                  context,
-                  index: 1,
-                  label: "History",
-                  outline: PhosphorIconsRegular.listDashes,
-                  fill: PhosphorIconsFill.listDashes,
-                ),
-              ),
+  Widget _buildFloatingNavBar(BuildContext context) {
+    return SafeArea(
+      minimum: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Material(
+          color: context.colors.onPrimary,
+          elevation: 8,
+          shadowColor: context.colors.onSurface,
+          borderRadius: BorderRadius.circular(28),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: SizedBox(
+              height: 60,
+              child: Stack(
+                key: _stackKey,
+                clipBehavior: Clip.none,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _navItem(
+                          context,
+                          index: 0,
+                          label: "Home",
+                          outline: PhosphorIconsRegular.house,
+                          fill: PhosphorIconsBold.house,
+                        ),
+                      ),
+                      Expanded(
+                        child: _navItem(
+                          context,
+                          index: 1,
+                          label: "History",
+                          outline: PhosphorIconsRegular.listDashes,
+                          fill: PhosphorIconsBold.listDashes,
+                        ),
+                      ),
 
-              const SizedBox(width: 64),
+                      // Centered FAB, inline with the nav items
+                      _buildFab(context),
 
-              Expanded(
-                child: _navItem(
-                  context,
-                  index: 2,
-                  label: "Budget",
-                  outline: PhosphorIconsRegular.handCoins,
-                  fill: PhosphorIconsFill.handCoins,
-                ),
+                      Expanded(
+                        child: _navItem(
+                          context,
+                          index: 2,
+                          label: "Budget",
+                          outline: PhosphorIconsRegular.handCoins,
+                          fill: PhosphorIconsBold.handCoins,
+                        ),
+                      ),
+                      Expanded(
+                        child: _navItem(
+                          context,
+                          index: 3,
+                          label: "Credit",
+                          outline: PhosphorIconsRegular.creditCard,
+                          fill: PhosphorIconsBold.creditCard,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // // Sliding underline dash, anchored to the bottom of the bar
+                  // if (_indicatorLeft != null)
+                  //   AnimatedPositioned(
+                  //     duration: const Duration(milliseconds: 280),
+                  //     curve: Curves.easeOutCubic,
+                  //     left: _indicatorLeft!,
+                  //     bottom: 0,
+                  //     width: _pillWidth,
+                  //     height: _pillHeight,
+                  //     child: DecoratedBox(
+                  //       decoration: BoxDecoration(
+                  //         color: Theme.of(context).colorScheme.primary,
+                  //         borderRadius: BorderRadius.circular(_pillHeight),
+                  //       ),
+                  //     ),
+                  //   ),
+                ],
               ),
-              Expanded(
-                child: _navItem(
-                  context,
-                  index: 3,
-                  label: "Credit",
-                  outline: PhosphorIconsRegular.creditCard,
-                  fill: PhosphorIconsFill.creditCard,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -126,7 +182,7 @@ class MainPage extends StatelessWidget {
     required IconData outline,
     required IconData fill,
   }) {
-    final selected = navigationShell.currentIndex == index;
+    final selected = widget.navigationShell.currentIndex == index;
 
     final color = selected
         ? Theme.of(context).colorScheme.primary
@@ -134,42 +190,58 @@ class MainPage extends StatelessWidget {
 
     return InkWell(
       onTap: () => _onTap(index),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(selected ? fill : outline, color: color, size: 24),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: color,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            ),
+          // This container is what gets measured by _itemKeys — its center
+          // is where the underline dash animates to.
+          Container(
+            key: _itemKeys[index],
+            width: 40,
+            height: 32,
+            alignment: Alignment.center,
+            child: Icon(selected ? fill : outline, color: color, size: 24),
           ),
+          if (selected)
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget buildFab(BuildContext context) {
-    return SizedBox(
-      width: 56,
-      height: 56,
-      child: FloatingActionButton(
+  Widget _buildFab(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Material(
+        color: Theme.of(context).colorScheme.primary,
         shape: const CircleBorder(),
-
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            builder: (sheetContext) => const ActionSheet(isRouter: true),
-          );
-        },
-        child: Icon(
-          PhosphorIconsBold.plus,
-          size: 28,
-          color: context.colors.onPrimary,
+        elevation: 4,
+        shadowColor: context.colors.onSurface,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            showModalBottomSheet(
+              context: context,
+              builder: (sheetContext) => const ActionSheet(isRouter: true),
+            );
+          },
+          child: SizedBox(
+            width: 48,
+            height: 48,
+            child: Icon(
+              PhosphorIconsBold.plus,
+              size: 24,
+              color: context.colors.onPrimary,
+            ),
+          ),
         ),
       ),
     );

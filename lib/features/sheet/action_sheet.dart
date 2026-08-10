@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:UangKu/utils/wizard.dart';
 import 'package:UangKu/features/sheet/step_sheet.dart';
 import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
+import 'package:UangKu/features/form_data/transaction_form_data.dart';
 import 'package:UangKu/utils/icon_assets.dart';
+import 'package:UangKu/features/sheet/trasanction_sheet.dart';
 
 // final pages = {
 //   'router': SelectPage(),
@@ -21,23 +23,6 @@ class AddItem {
   AddItem(this.title, this.type, this.leading, this.subtitle);
 }
 
-List<TransactionStep> homeSteps = [
-  TransactionStep(title: "Amount & type", content: const SourceStep()),
-
-  TransactionStep(title: "Category", content: const TransactionTypeStep()),
-
-  TransactionStep(title: "Details", content: const DetailsStep()),
-
-  TransactionStep(title: "Confimation", content: const ConfirmationStep()),
-];
-
-List<TransactionStep> walletSteps = [
-  TransactionStep(title: "Type", content: const TransactionTypeStep()),
-
-  TransactionStep(title: "Details", content: const DetailsStep()),
-
-  TransactionStep(title: "Confirm", content: const ConfirmationStep()),
-];
 
 class ActionSheet extends StatefulWidget {
   final bool isRouter;
@@ -58,15 +43,39 @@ class ActionSheet extends StatefulWidget {
 class _CreateSheetState extends State<ActionSheet> {
   int currentStep = 0;
   AddType? selectedType;
+  final TransactionFormData formData = TransactionFormData();
+
+  List<ActionSheetStep> get homeSteps => [
+    ActionSheetStep(
+      title: "Amount & type",
+      content: TransactionStep(formData: formData),
+    ),
+    ActionSheetStep(title: "Category", content: TransactionTypeStep()),
+    ActionSheetStep(title: "Details", content: const DetailsStep()),
+    ActionSheetStep(title: "Confirmation", content: const ConfirmationStep()),
+  ];
+
+  List<ActionSheetStep> get walletSteps => [
+    ActionSheetStep(title: "Type", content: TransactionTypeStep()),
+    ActionSheetStep(title: "Details", content: const DetailsStep()),
+    ActionSheetStep(title: "Confirm", content: const ConfirmationStep()),
+  ];
+
+  @override
+  void dispose() {
+    formData.dispose();
+    super.dispose();
+  }
+
   String selectedTitle = '';
 
-  List<TransactionStep> get steps {
+  List<ActionSheetStep> get steps {
     switch (widget.type) {
       case AddType.transaction:
         return homeSteps;
 
       case AddType.budget:
-        return homeSteps;
+        return walletSteps;
 
       case AddType.credit:
         return homeSteps;
@@ -90,7 +99,7 @@ class _CreateSheetState extends State<ActionSheet> {
 
     final items = [
       AddItem(
-        "Transaction",
+        "Add Transaction",
         AddType.transaction,
         Container(
           width: 50,
@@ -110,7 +119,7 @@ class _CreateSheetState extends State<ActionSheet> {
         "Record an expense or income",
       ),
       AddItem(
-        "Budget",
+        "Set New Budget",
         AddType.budget,
         Container(
           width: 50,
@@ -126,7 +135,7 @@ class _CreateSheetState extends State<ActionSheet> {
         "Create a category spending limit",
       ),
       AddItem(
-        "Credit",
+        "Add Credit / Loan",
         AddType.credit,
         Container(
           width: 50,
@@ -152,7 +161,12 @@ class _CreateSheetState extends State<ActionSheet> {
       padding: EdgeInsets.only(bottom: keyboardHeight),
       child: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(
+            20, // left
+            20, // top
+            20, // right
+            40, // bottom
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -246,62 +260,28 @@ class _CreateSheetState extends State<ActionSheet> {
                     ),
 
                     onTap: () {
-                      setState(() {
-                        selectedType = item.type;
-                        selectedTitle = item.title;
-                      });
+                      Navigator.pop(context);
+
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (_) => ActionSheet(
+                          isRouter: false,
+                          titleRouter: item.title,
+                          type: item.type,
+                        ),
+                      );
                     },
+                    // setState(() {
+                    //   selectedType = item.type;
+                    //   selectedTitle = item.title;
+                    // });
+                    // },
                   ),
                 );
               }),
 
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: selectedType == null
-                        ? Colors.grey
-                        : context.colors.primary,
-                    foregroundColor: selectedType == null
-                        ? Colors.grey.shade300
-                        : Colors.black,
-                  ),
-                  onPressed: selectedType == null
-                      ? null
-                      : () {
-                          Navigator.pop(context);
-
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            builder: (_) => ActionSheet(
-                              isRouter: false,
-                              titleRouter: selectedTitle,
-                              type: selectedType,
-                            ),
-                          );
-                        },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-
-                    children: [
-                      Text(
-                        "Continue",
-                        style: context.text.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(width: 4),
-                      Icon(PhosphorIconsBold.arrowRight, size: 16),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
+              // const SizedBox(height: 24),
             ],
           ),
         ),
@@ -349,7 +329,7 @@ class _CreateSheetState extends State<ActionSheet> {
                 subtitle: currentSteps[currentStep].title,
                 currentStep: currentStep,
                 totalSteps: currentSteps.length,
-                activeColor: Colors.blue,
+                activeColor: context.colors.primary,
                 showCloseButton: false,
               ),
 
@@ -399,25 +379,24 @@ class _CreateSheetState extends State<ActionSheet> {
                       // onTap:(){
 
                       // },
-                      
                       style: ElevatedButton.styleFrom(
                         backgroundColor: selectedType == null
-                            ? Colors.grey
+                            ? context.extra.grayColor
                             : context.colors.primary,
                         foregroundColor: selectedType == null
                             ? Colors.grey.shade300
                             : Colors.black,
                       ),
                       onPressed: () {
-                          FocusScope.of(context).unfocus();
-                          if (currentStep < currentSteps.length - 1) {
-                            setState(() {
-                              currentStep++;
-                            });
-                          } else {
-                            Navigator.pop(context);
-                          }
-                        },
+                        FocusScope.of(context).unfocus();
+                        if (currentStep < currentSteps.length - 1) {
+                          setState(() {
+                            currentStep++;
+                          });
+                        } else {
+                          Navigator.pop(context);
+                        }
+                      },
                       child: Text(
                         currentStep == currentSteps.length - 1
                             ? "Save"

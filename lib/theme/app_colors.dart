@@ -8,6 +8,7 @@ class ExtraColors extends ThemeExtension<ExtraColors> {
   final Color error;
   final Color warning;
   final Color grayColor;
+  final Color grayText;
 
   const ExtraColors({
     required this.icon,
@@ -16,6 +17,7 @@ class ExtraColors extends ThemeExtension<ExtraColors> {
     required this.error,
     required this.warning,
     required this.grayColor,
+    required this.grayText,
   });
 
   @override
@@ -26,6 +28,7 @@ class ExtraColors extends ThemeExtension<ExtraColors> {
     Color? error,
     Color? warning,
     Color? grayColor,
+    Color? grayText,
   }) {
     return ExtraColors(
       icon: icon ?? this.icon,
@@ -33,7 +36,8 @@ class ExtraColors extends ThemeExtension<ExtraColors> {
       success: success ?? this.success,
       error: error ?? this.error,
       warning: warning ?? this.warning,
-      grayColor: grayColor ?? this.grayColor
+      grayColor: grayColor ?? this.grayColor,
+      grayText: grayText ?? this.grayText
     );
   }
 
@@ -48,6 +52,7 @@ class ExtraColors extends ThemeExtension<ExtraColors> {
       error: Color.lerp(error, other.error, t)!,
       warning: Color.lerp(warning, other.warning, t)!,
       grayColor: Color.lerp(grayColor, other.grayColor, t)!,
+      grayText: Color.lerp(grayText, other.grayText, t)!,
     );
   }
 }

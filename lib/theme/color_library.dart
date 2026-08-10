@@ -59,6 +59,16 @@ class ColorLibrary {
   static const Color n95 = Color(0xFF262626);
   static const Color n100 = Color(0xFF000000); // Pure Black
 
+
+  // --- Light Theme Mobile Palette ---
+  static const Color containerDefaultLight = Color(0xFFE2E8F0); // Slate 200
+  static const Color containerPressedLight = Color(0xFFCBD5E1); // Slate 300
+  static const Color containerDisabledLight = Color(0xFFE5EAF0); // Soft blue-grey
+
+  // --- Dark Theme Mobile Palette ---
+  static const Color containerDefaultDark = Color(0xFF303946);
+  static const Color containerPressedDark = Color(0xFF3B4655);
+  static const Color containerDisabledDark = Color(0xFF202832); // Muted blue-grey
   // Success
   static const Color successLight = Color(0xFF2E7D32);
   static const Color successContainerLight = Color(0xFFC8E6C9);
