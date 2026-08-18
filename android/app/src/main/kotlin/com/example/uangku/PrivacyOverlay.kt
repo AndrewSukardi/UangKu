@@ -12,39 +12,80 @@ class PrivacyOverlay(
     private var view: ImageView? = null
 
     fun show() {
-        if (view != null) {
+        if (overlay != null) {
             return
         }
 
         val root = activity.window.decorView as ViewGroup
 
-        view = ImageView(activity).apply {
-            setImageResource(R.drawable.splash)
+        // The Flutter content.
+        // We blur everything behind our privacy overlay.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            blurredView = root
 
-            // Background
-            setBackgroundColor(0xFF59C7D8.toInt())
-
-            // Keep icon centered
-            scaleType = ImageView.ScaleType.CENTER
-
-            isClickable = false
-            isFocusable = false
+            root.setRenderEffect(
+                RenderEffect.createBlurEffect(
+                    25f,
+                    25f,
+                    Shader.TileMode.CLAMP
+                )
+            )
         }
 
+        // Overlay shown above the blurred Flutter content.
+        val privacyOverlay = FrameLayout(activity).apply {
+            setBackgroundColor(
+                Color.argb(
+                    180,      // alpha
+                    89,       // #59
+                    199,      // #C7
+                    216       // #D8
+                )
+            )
+        }
+
+        val size = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            180f,
+            activity.resources.displayMetrics
+        ).toInt()
+
+        val icon = ImageView(activity).apply {
+            setImageResource(R.drawable.splash)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+        }
+
+        privacyOverlay.addView(
+            icon,
+            FrameLayout.LayoutParams(size, size).apply {
+                gravity = Gravity.CENTER
+            }
+        )
+
         root.addView(
-            view,
+            privacyOverlay,
             ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         )
+
+        overlay = privacyOverlay
     }
 
     fun hide() {
-        val privacyView = view ?: return
+        // Remove overlay
+        overlay?.let { view ->
+            (view.parent as? ViewGroup)?.removeView(view)
+        }
 
-        (privacyView.parent as? ViewGroup)?.removeView(privacyView)
+        overlay = null
 
-        view = null
+        // Remove blur
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (blurredView as? ViewGroup)?.setRenderEffect(null)
+        }
+
+        blurredView = null
     }
 }
