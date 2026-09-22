@@ -21,7 +21,8 @@ enum IconAssets {
   success('success.png'),
   transaction('transaction.png'),
   transport('transport.png'),
-  utilities('utilities.png');
+  utilities('utilities.png'),
+  other('other.png');
 
   const IconAssets(this.fileName);
 

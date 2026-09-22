@@ -68,7 +68,7 @@ class ColorLibrary {
   // --- Dark Theme Mobile Palette ---
   static const Color containerDefaultDark = Color(0xFF303946);
   static const Color containerPressedDark = Color(0xFF3B4655);
-  static const Color containerDisabledDark = Color(0xFF202832); // Muted blue-grey
+  static const Color containerDisabledDark = Color(0xFF2B323C); // Muted blue-grey
   // Success
   static const Color successLight = Color(0xFF2E7D32);
   static const Color successContainerLight = Color(0xFFC8E6C9);

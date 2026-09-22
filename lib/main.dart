@@ -4,11 +4,16 @@ import 'router.dart';
 import 'package:UangKu/theme/app_theme.dart';
 import 'package:UangKu/services/notification_service.dart';
 
+import 'package:UangKu/core/providers/database_providers.dart';
+
 Future<void> main() async {
 
   WidgetsFlutterBinding.ensureInitialized();
 
   await NotificationService.initialize();
+
+  final container = ProviderContainer();
+  container.read(appDatabaseProvider);
   
   runApp(
     const ProviderScope(child: MyApp(),

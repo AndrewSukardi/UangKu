@@ -88,13 +88,13 @@ class _MainPageState extends State<MainPage> {
 
   Widget _buildFloatingNavBar(BuildContext context) {
     return SafeArea(
-      minimum: const EdgeInsets.only(bottom: 12),
+      minimum: const EdgeInsets.only(bottom: 25),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Material(
           color: context.colors.onPrimary,
           elevation: 8,
-          shadowColor: context.colors.onSurface,
+          shadowColor: context.colors.shadow,
           borderRadius: BorderRadius.circular(28),
           clipBehavior: Clip.antiAlias,
           child: Padding(
@@ -224,7 +224,7 @@ class _MainPageState extends State<MainPage> {
         color: Theme.of(context).colorScheme.primary,
         shape: const CircleBorder(),
         elevation: 4,
-        shadowColor: context.colors.onSurface,
+        shadowColor: context.colors.shadow,
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () {

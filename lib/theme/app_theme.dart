@@ -8,8 +8,8 @@ class AppTheme {
       primary: Color(0xFF59C7D8),
       primaryContainer: Color(0xFFBCEEF5),
 
-      secondary: Color(0xFFBCEEF5),
-      secondaryContainer: Color(0xFFFFF3C4),
+      secondary: Color(0xFF6B8EAE),
+      secondaryContainer: Color(0xFFF7F8FC),
 
       surface: Color(0xFFF1F3F5),
       onSurface: Color(0xFF1A1A1A),
@@ -64,8 +64,11 @@ class AppTheme {
       displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.bold),
       headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
       titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+      titleMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+      titleSmall: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
       bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
+      bodySmall: TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
       labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
     ),
   );
@@ -75,8 +78,8 @@ class AppTheme {
       primary: Color(0xFF59C7D8),
       primaryContainer: Color(0xFF14616F),
 
-      secondary: Color(0xFFF5C84C),
-      secondaryContainer: Color(0xFF7A6112),
+      secondary: Color(0xFF9AB7D0),
+      secondaryContainer: Color(0xFF17191D),
 
       surface: Color(0xFF262626),
       onSurface: Colors.white,
@@ -84,6 +87,7 @@ class AppTheme {
       onPrimary: Colors.black,
       onSecondary: Colors.black,
 
+      shadow: Color(0xFF1E1E1E),
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       elevation: 4,
@@ -114,6 +118,17 @@ class AppTheme {
       indicatorColor: const Color(0xFFBCEEF5),
     ),
 
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.bold),
+      headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+      titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+      titleMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+      titleSmall: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
+      bodySmall: TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+    ),
     extensions: const [
       ExtraColors(
         icon: Colors.white,

@@ -1,17 +1,15 @@
 import 'package:UangKu/theme/theme_extensions.dart';
 import 'package:flutter/material.dart';
-import 'package:UangKu/utils/wizard.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:UangKu/features/sheet/step_sheet.dart';
-import 'package:phosphoricons_flutter/phosphoricons_flutter.dart';
 import 'package:UangKu/features/form_data/transaction_form_data.dart';
 import 'package:UangKu/utils/icon_assets.dart';
 import 'package:UangKu/features/sheet/trasanction_sheet.dart';
+import 'package:UangKu/utils/router_icon.dart';
 
-// final pages = {
-//   'router': SelectPage(),
-//   'home': HomePage(),
-//   'settings': SettingsPage(),
-// };
+import 'package:UangKu/core/providers/database_providers.dart'; // walletDaoProvider
+import 'package:UangKu/features/form_data/wallet_form_data.dart';
+import 'package:UangKu/features/sheet/wallet_sheet.dart';
 
 enum AddType { transaction, budget, credit }
 
@@ -20,11 +18,10 @@ class AddItem {
   final AddType type;
   final Widget leading;
   final String subtitle;
-  AddItem(this.title, this.type, this.leading, this.subtitle);
+  const AddItem(this.title, this.type, this.leading, this.subtitle);
 }
 
-
-class ActionSheet extends StatefulWidget {
+class ActionSheet extends ConsumerStatefulWidget {
   final bool isRouter;
   final String titleRouter;
   final AddType? type;
@@ -37,61 +34,146 @@ class ActionSheet extends StatefulWidget {
   });
 
   @override
-  State<ActionSheet> createState() => _CreateSheetState();
+  ConsumerState<ActionSheet> createState() => _ActionSheetState();
 }
 
-class _CreateSheetState extends State<ActionSheet> {
+class _ActionSheetState extends ConsumerState<ActionSheet> {
   int currentStep = 0;
-  AddType? selectedType;
-  final TransactionFormData formData = TransactionFormData();
 
-  List<ActionSheetStep> get homeSteps => [
-    ActionSheetStep(
-      title: "Amount & type",
-      content: TransactionStep(formData: formData),
-    ),
-    ActionSheetStep(title: "Category", content: TransactionTypeStep()),
-    ActionSheetStep(title: "Details", content: const DetailsStep()),
-    ActionSheetStep(title: "Confirmation", content: const ConfirmationStep()),
-  ];
+  bool _saving = false;
 
-  List<ActionSheetStep> get walletSteps => [
-    ActionSheetStep(title: "Type", content: TransactionTypeStep()),
-    ActionSheetStep(title: "Details", content: const DetailsStep()),
-    ActionSheetStep(title: "Confirm", content: const ConfirmationStep()),
-  ];
+  // Created lazily so the router page (isRouter: true) never allocates a
+  // form it doesn't need.
+  TransactionFormData? _formData;
+  TransactionFormData get formData => _formData ??= TransactionFormData();
+
+  WalletFormData? _walletFormData;
+  WalletFormData get walletForm => _walletFormData ??= WalletFormData();
+
+  Listenable get _activeForm =>
+      widget.type == AddType.credit ? walletForm : formData;
 
   @override
   void dispose() {
-    formData.dispose();
+    _formData?.dispose();
+    _walletFormData?.dispose();
     super.dispose();
   }
 
-  String selectedTitle = '';
+  List<ActionSheetStep> get _transactionSteps {
+    return formData.steps.map((step) {
+      switch (step) {
+        case TxStep.amountType:
+          return ActionSheetStep(
+            title: "Amount & type",
+            content: TransactionStep(formData: formData),
+            isValid: () => formData.isStepValid(TxStep.amountType),
+          );
+        case TxStep.category:
+          return ActionSheetStep(
+            title: "Category",
+            content: CategoryStep(formData: formData),
+            isValid: () => formData.isStepValid(TxStep.category),
+          );
+        case TxStep.details:
+          return ActionSheetStep(
+            title: "Details",
+            content: DetailsStep(formData: formData),
+            isValid: () => formData.isStepValid(TxStep.details),
+          );
+        case TxStep.transferDetails:
+          return ActionSheetStep(
+            title: "Transfer",
+            content: TransferDetailsStep(formData: formData),
+            isValid: () => formData.isStepValid(TxStep.transferDetails),
+          );
+        case TxStep.confirmation:
+          return ActionSheetStep(
+            title: "Confirmation",
+            content: ConfirmationStep(formData: formData),
+            isValid: () => formData.isStepValid(TxStep.confirmation),
+          );
+      }
+    }).toList();
+  }
+
+  List<ActionSheetStep> get _walletSteps {
+    return walletForm.steps.map((step) {
+      switch (step) {
+        case WalletStep.details:
+          return ActionSheetStep(
+            title: "Wallet details",
+            content: WalletDetailsStep(formData: walletForm),
+            isValid: () => walletForm.isStepValid(WalletStep.details),
+          );
+        case WalletStep.billing:
+          return ActionSheetStep(
+            title: "Billing cycle",
+            content: WalletBillingStep(formData: walletForm),
+            isValid: () => walletForm.isStepValid(WalletStep.billing),
+          );
+        case WalletStep.confirmation:
+          return ActionSheetStep(
+            title: "Confirmation",
+            content: WalletConfirmationStep(formData: walletForm),
+            isValid: () => walletForm.isStepValid(WalletStep.confirmation),
+          );
+      }
+    }).toList();
+  }
+
+  // Budget / credit don't have dedicated form data yet — placeholder flow
+  // so the sheet still opens and doesn't crash.
+  // TODO: replace with real BudgetFormData / CreditFormData-backed steps.
+  static const _placeholderSteps = [
+    ActionSheetStep(
+      title: "Details",
+      content: PlaceholderStep(label: "Name"),
+    ),
+    ActionSheetStep(
+      title: "Confirm",
+      content: PlaceholderStep(label: "Confirm"),
+    ),
+  ];
 
   List<ActionSheetStep> get steps {
     switch (widget.type) {
       case AddType.transaction:
-        return homeSteps;
-
+        return _transactionSteps;
       case AddType.budget:
-        return walletSteps;
-
+        return _placeholderSteps;
       case AddType.credit:
-        return homeSteps;
-
+        return _walletSteps;
       default:
-        return [];
+        return const [];
+    }
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      if (widget.type == AddType.credit) {
+        final companion = walletForm.toCompanion();
+        debugPrint('Saving wallet: $companion');
+        final id = await ref.read(walletDaoProvider).addWallet(companion);
+        debugPrint('Inserted wallet id: $id');
+      }
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e, st) {
+      debugPrint('Save failed: $e\n$st');
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.isRouter) {
-      return _buildRouter();
-    }
-
-    return _buildSteps();
+    return widget.isRouter ? _buildRouter() : _buildSteps();
   }
 
   Widget _buildRouter() {
@@ -101,56 +183,27 @@ class _CreateSheetState extends State<ActionSheet> {
       AddItem(
         "Add Transaction",
         AddType.transaction,
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.green.shade50,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Center(
-            child: Image.asset(
-              IconAssets.transaction.path,
-              width: 24,
-              height: 24,
-            ),
-          ),
+        RouterIcon(
+          assetPath: IconAssets.transaction.path,
+          background: Colors.green.shade50,
         ),
         "Record an expense or income",
       ),
       AddItem(
         "Set New Budget",
         AddType.budget,
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Center(
-            child: Image.asset(IconAssets.budget.path, width: 24, height: 24),
-          ),
+        RouterIcon(
+          assetPath: IconAssets.budget.path,
+          background: Colors.blue.shade50,
         ),
         "Create a category spending limit",
       ),
       AddItem(
         "Add Credit / Loan",
         AddType.credit,
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.amber.shade50,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Center(
-            child: Image.asset(
-              IconAssets.creditCard.path,
-              width: 24,
-              height: 24,
-            ),
-          ),
+        RouterIcon(
+          assetPath: IconAssets.creditCard.path,
+          background: Colors.amber.shade50,
         ),
         "Track a new card, debt, or bill",
       ),
@@ -161,12 +214,7 @@ class _CreateSheetState extends State<ActionSheet> {
       padding: EdgeInsets.only(bottom: keyboardHeight),
       child: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            20, // left
-            20, // top
-            20, // right
-            40, // bottom
-          ),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -179,51 +227,16 @@ class _CreateSheetState extends State<ActionSheet> {
                   borderRadius: BorderRadius.circular(100),
                 ),
               ),
-
               const SizedBox(height: 6),
-
-              StepHeader(
+              const StepHeader(
                 title: "Quick Add",
                 subtitle: "What would you like to do ?",
                 showCloseButton: false,
                 showIndicatorStep: false,
               ),
-
-              // Padding(
-              //   padding: const EdgeInsets.symmetric(horizontal: 6),
-              //   child: Column(
-              //     children: [
-              //       Align(
-              //         alignment: Alignment.centerLeft,
-              //         child: Text(
-              //           "Quick Add",
-              //           style: Theme.of(context).textTheme.headlineSmall
-              //               ?.copyWith(fontWeight: FontWeight.bold),
-              //         ),
-              //       ),
-
-              //       SizedBox(height: 2),
-
-              //       Align(
-              //         alignment: Alignment.centerLeft,
-              //         child: Text(
-              //           "What would you like to do ?",
-              //           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              //             color: context.extra.grayColor,
-              //           ),
-              //         ),
-              //       ),
-
-              //       SizedBox(height: 8),
-              //     ],
-              //   ),
-              // ),
               const SizedBox(height: 12),
-
-              ...items.map((item) {
-                final isSelected = selectedType == item.type;
-
-                return Padding(
+              ...items.map(
+                (item) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     leading: item.leading,
@@ -238,30 +251,14 @@ class _CreateSheetState extends State<ActionSheet> {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     horizontalTitleGap: 8,
-
                     titleTextStyle: Theme.of(context).textTheme.labelMedium,
-
                     contentPadding: const EdgeInsets.symmetric(horizontal: 5),
-
-                    tileColor: isSelected
-                        ? context.colors.primaryContainer
-                        : null,
-
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-
-                      side: BorderSide(
-                        color: isSelected
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.grey.shade300,
-
-                        width: 2,
-                      ),
+                      side: BorderSide(color: Colors.grey.shade300, width: 2),
                     ),
-
                     onTap: () {
                       Navigator.pop(context);
-
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -272,16 +269,9 @@ class _CreateSheetState extends State<ActionSheet> {
                         ),
                       );
                     },
-                    // setState(() {
-                    //   selectedType = item.type;
-                    //   selectedTitle = item.title;
-                    // });
-                    // },
                   ),
-                );
-              }),
-
-              // const SizedBox(height: 24),
+                ),
+              ),
             ],
           ),
         ),
@@ -291,221 +281,119 @@ class _CreateSheetState extends State<ActionSheet> {
 
   Widget _buildSteps() {
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-    final currentSteps = steps;
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 200),
-      padding: EdgeInsets.only(bottom: keyboardHeight),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            20, // left
-            20, // top
-            20, // right
-            40, // bottom
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 75,
-                height: 3,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade400,
-                  borderRadius: BorderRadius.circular(100),
-                ),
-              ),
+    // Rebuilds whenever the form data changes, so the Next/Save button's
+    // enabled state always reflects the current step's validity.
+    return AnimatedBuilder(
+      animation: _activeForm,
+      builder: (context, _) {
+        final currentSteps = steps;
+        if (currentSteps.isEmpty) return const SizedBox.shrink();
+        if (currentStep >= currentSteps.length)
+          currentStep = currentSteps.length - 1;
 
-              // const SizedBox(height: 8),
+        final isLastStep = currentStep == currentSteps.length - 1;
+        final canProceed = currentSteps[currentStep].isValid?.call() ?? true;
 
-              // StepIndicator(
-              //   currentStep: currentStep,
-              //   totalSteps: currentSteps.length,
-              //   titles: currentSteps.map((e) => e.title).toList(),
-              // ),
-              StepHeader(
-                title: widget.titleRouter,
-                subtitle: currentSteps[currentStep].title,
-                currentStep: currentStep,
-                totalSteps: currentSteps.length,
-                activeColor: context.colors.primary,
-                showCloseButton: false,
-              ),
-
-              const SizedBox(height: 24),
-
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: currentSteps[currentStep].content,
-              ),
-
-              const SizedBox(height: 24),
-
-              Row(
+        return AnimatedPadding(
+          duration: const Duration(milliseconds: 200),
+          padding: EdgeInsets.only(bottom: keyboardHeight),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    flex: 1,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (currentStep > 0) {
-                          setState(() {
-                            currentStep--;
-                          });
-                        } else {
-                          Navigator.pop(context);
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            builder: (_) => const ActionSheet(isRouter: true),
-                          );
-                        }
-                      },
-                      child: Text(
-                        currentStep > 0 ? "Back" : "Change",
-                        style: context.text.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                  Container(
+                    width: 75,
+                    height: 3,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(100),
                     ),
                   ),
-
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    flex: (currentStep > 0 || currentStep == 0) ? 2 : 1,
-
-                    child: ElevatedButton(
-                      // onTap:(){
-
-                      // },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: selectedType == null
-                            ? context.extra.grayColor
-                            : context.colors.primary,
-                        foregroundColor: selectedType == null
-                            ? Colors.grey.shade300
-                            : Colors.black,
-                      ),
-                      onPressed: () {
-                        FocusScope.of(context).unfocus();
-                        if (currentStep < currentSteps.length - 1) {
-                          setState(() {
-                            currentStep++;
-                          });
-                        } else {
-                          Navigator.pop(context);
-                        }
-                      },
-                      child: Text(
-                        currentStep == currentSteps.length - 1
-                            ? "Save"
-                            : "Next",
-                        style: context.text.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                  StepHeader(
+                    title: widget.titleRouter,
+                    subtitle: currentSteps[currentStep].title,
+                    currentStep: currentStep,
+                    totalSteps: currentSteps.length,
+                    activeColor: context.colors.primary,
+                    showCloseButton: false,
+                  ),
+                  const SizedBox(height: 24),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: KeyedSubtree(
+                      key: ValueKey(currentStep),
+                      child: currentSteps[currentStep].content,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (currentStep > 0) {
+                              setState(() => currentStep--);
+                            } else {
+                              Navigator.pop(context);
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                builder: (_) =>
+                                    const ActionSheet(isRouter: true),
+                              );
+                            }
+                          },
+                          child: Text(
+                            currentStep > 0 ? "Back" : "Change",
+                            style: context.text.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: canProceed
+                                ? context.colors.primary
+                                : context.extra.grayColor,
+                            foregroundColor: canProceed
+                                ? Colors.black
+                                : Colors.grey.shade300,
+                          ),
+                          onPressed: !canProceed
+                              ? null
+                              : () {
+                                  FocusScope.of(context).unfocus();
+                                  if (!isLastStep) {
+                                    setState(() => currentStep++);
+                                  } else {
+                                    _save();
+                                  }
+                                },
+                          child: Text(
+                            isLastStep ? "Save" : "Next",
+                            style: context.text.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
-
-
-
-
-
-// class _CreateMultiSheetState() extends State<AddSheet> {
-//   int currentStep = 0;
-
-//   List<TransactionStep> get steps {
-//     return homeSteps;
-//   }
-
-//   final form = TransactionFormData();
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-//     final currentSteps = steps;
-
-//     return AnimatedPadding(
-//       duration: const Duration(milliseconds: 200),
-//       padding: EdgeInsets.only(bottom: keyboardHeight),
-//       child: SingleChildScrollView(
-//         child: Padding(
-//           padding: const EdgeInsets.all(20),
-//           child: Column(
-//             mainAxisSize: MainAxisSize.min,
-//             children: [
-//               Container(
-//                 width: 80,
-//                 height: 2.5,
-//                 margin: const EdgeInsets.only(bottom: 20),
-//                 decoration: BoxDecoration(
-//                   color: Colors.grey.shade200,
-//                   borderRadius: BorderRadius.circular(100),
-//                 ),
-//               ),
-
-//               StepIndicator(
-//                 currentStep: currentStep,
-//                 totalSteps: currentSteps.length,
-//                 titles: currentSteps.map((e) => e.title).toList(),
-//               ),
-
-//               const SizedBox(height: 24),
-
-//               AnimatedSwitcher(
-//                 duration: const Duration(milliseconds: 300),
-//                 child: currentSteps[currentStep].content,
-//               ),
-
-//               const SizedBox(height: 24),
-
-//               Row(
-//                 children: [
-//                   if (currentStep > 0)
-//                     ElevatedButton(
-//                       onPressed: () {
-//                         setState(() {
-//                           currentStep--;
-//                         });
-//                       },
-//                       child: const Text("Back"),
-//                     ),
-
-//                   const Spacer(),
-
-//                   ElevatedButton(
-//                     onPressed: () {
-//                       FocusScope.of(context).unfocus();
-//                       if (currentStep < currentSteps.length - 1) {
-//                         setState(() {
-//                           currentStep++;
-//                         });
-//                       } else {
-//                         Navigator.pop(context);
-//                       }
-//                     },
-//                     child: Text(
-//                       currentStep == currentSteps.length - 1 ? "Save" : "Next",
-//                     ),
-//                   ),
-//                 ],
-//               ),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-

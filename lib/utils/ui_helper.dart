@@ -14,6 +14,8 @@ class NumberInputBox extends StatefulWidget {
   final int? maxValue;
   final ValueChanged<int>? onChanged;
   final ValueNotifier<int>? amountNotifier; // <-- external controller
+  final bool showResetButton; // <-- toggle the reset button
+  final Color resetIconColor;
 
   const NumberInputBox({
     super.key,
@@ -28,6 +30,8 @@ class NumberInputBox extends StatefulWidget {
     this.maxValue,
     this.onChanged,
     this.amountNotifier,
+    this.showResetButton = true,
+    this.resetIconColor = const Color(0xFF8B95C9),
   });
 
   @override
@@ -53,6 +57,7 @@ class _NumberInputBoxState extends State<NumberInputBox> {
   @override
   void dispose() {
     _notifier?.removeListener(_onNotifierChanged);
+    _controller.dispose();
     super.dispose();
   }
 
@@ -78,10 +83,14 @@ class _NumberInputBoxState extends State<NumberInputBox> {
     return 22;
   }
 
-  void _onChanged(String val) {
-    final digitsOnly = val.replaceAll(RegExp(r'[^0-9]'), '');
-    int newValue = digitsOnly.isEmpty ? 0 : int.parse(digitsOnly);
+  double get _fontSizeLabel {
+    final len = _controller.text.length;
+    if (len <= 12) return 22;
+    if (len <= 15) return 19;
+    return 17;
+  }
 
+  void _setValue(int newValue) {
     if (widget.minValue != null && newValue < widget.minValue!) {
       newValue = widget.minValue!;
     }
@@ -106,6 +115,18 @@ class _NumberInputBoxState extends State<NumberInputBox> {
     widget.onChanged?.call(_value);
   }
 
+  void _onChanged(String val) {
+    final digitsOnly = val.replaceAll(RegExp(r'[^0-9]'), '');
+    final newValue = digitsOnly.isEmpty ? 0 : int.parse(digitsOnly);
+    _setValue(newValue);
+  }
+
+  void _onReset() {
+    // Respect a minValue floor if one is set (e.g. minValue: 1000 -> reset goes to 1000, not 0)
+    final target = widget.minValue ?? 0;
+    _setValue(target);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -124,14 +145,39 @@ class _NumberInputBoxState extends State<NumberInputBox> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            widget.label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-              color: widget.labelColor,
-            ),
+          Row(
+            children: [
+              // Left spacer only appears if reset button is shown, to balance the icon on the right
+              if (widget.showResetButton)
+                SizedBox(
+                  width: 16,
+                ), // roughly matches icon width so label stays centered
+              Expanded(
+                child: Text(
+                  widget.label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: widget.labelColor,
+                  ),
+                ),
+              ),
+              if (widget.showResetButton)
+                GestureDetector(
+                  onTap: _value == 0 ? null : _onReset,
+                  child: Icon(
+                    Icons.refresh_rounded,
+                    size: 16,
+                    color: _value == 0
+                        ? widget.resetIconColor.withOpacity(0.3)
+                        : widget.resetIconColor,
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
+            ],
           ),
           const SizedBox(height: 10),
           SizedBox(
@@ -173,7 +219,7 @@ class _NumberInputBoxState extends State<NumberInputBox> {
                     style: TextStyle(
                       color: widget.prefixColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: _fontSize,
+                      fontSize: _fontSizeLabel,
                       height: 1.0, // <-- match TextField's line height
                     ),
                   ),
@@ -188,3 +234,4 @@ class _NumberInputBoxState extends State<NumberInputBox> {
     );
   }
 }
+
